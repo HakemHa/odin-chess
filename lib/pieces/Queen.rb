@@ -1,10 +1,11 @@
 require_relative "./Piece"
 
-class Rook < Piece
+class Queen < Piece
 
   attr_reader :id
   def initialize(id = "Q")
     @id = id
+    @color = id[id.length-1]
   end
 
   def moves(board)
@@ -13,9 +14,14 @@ class Rook < Piece
     default_moves = [[-1, 1], [1, 1], [1, -1], [-1, -1], [-1, 0], [0, 1], [1, 0], [0, -1]]
     for dy, dx in default_moves do
       ny, nx = y+dy, x+dx
-      while board.empty?(ny, nx) do
+      board_status = board.status(ny, nx)
+      while board_status == "E" do
         ds.push([ny-y, nx-x])
         ny, nx = ny+dy, nx+dx
+        board_status = board.status(ny, nx)
+      end
+      if ![@color, nil].include?(board_status) then
+        ds.push([ny-y, nx-x])
       end
     end
     ans = []
