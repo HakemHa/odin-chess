@@ -1,5 +1,6 @@
 class Grid
 
+  attr_accessor :board
   def initialize
     @board = Array.new(8) { Array.new(8) }
   end
@@ -31,5 +32,6 @@ class Grid
         end
       end
     end
+    return nil, nil
   end
 end

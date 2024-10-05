@@ -5,41 +5,55 @@ class Pawn < Piece
   attr_reader :id
   def initialize(id = "P")
     @id = id
-    @color = id[id.length-1]
   end
 
-  def moves(board)
-    y, x = board.get_location(@id)
-    ds = [[-1, 0]]
-    diags = [[-1, 1], [-1, -1]]
-    if @color == "B" then
-      for d in ds do
-        dy, dx = -d[0], -d[1]
-        d[0], d[1] = dy, dx
-      end
-      for d in diags do
-        dy, dx = -d[0], -d[1]
-        d[0], d[1] = dy, dx
-      end
+  def moves(game_state)
+    board = game_state[:board]
+    color = @id[2]
+    location = board.get_location(@id)
+    start_row = color == "W" ? 6 : 1
+    move = color == "W" ? -1 : 1
+    valid_moves = []
+    if board.board[location[0]+move][location[1]].nil? then
+      valid_moves.push([location[0]+move, location[1]])
     end
-    if @color == "W" && y == 6 then
-      ds.push([-2, 0])
-    elsif @color == "B" && y == 1 then
-      ds.push([2, 0])
-    end
-    ans = []
-    for dy, dx in ds do
-      board_status = board.status(y+dy, x+dx)
-      if board_status == "E" then
-        ans.push([y+dy, x+dx])
+    if valid_moves.length > 0 && location[0] == start_row then
+      if board.board[location[0]+2*move][location[1]].nil? then
+        valid_moves.push([location[0]+2*move, location[1]])
       end
     end
-    for dy, dx in diags do
-      board_status = board.status(y+dy, x+dx)
-      if ![nil, @color, "E"].include?(board_status) then
-        ans.push([y+dy, x+dx])
+    if location[1] < 7 && !board.board[location[0]+move][location[1]+1].nil? then
+      valid_moves.push([location[0]+move, location[1]+1])
+    end
+    if location[1] > 0 && !board.board[location[0]+move][location[1]-1].nil? then
+      valid_moves.push([location[0]+move, location[1]-1])
+    end
+    en_passant = get_en_passant(game_state)
+    if !en_passant.nil? then
+      valid_moves.push([location[0]+move, location[1]+en_passant])
+    end
+    return valid_moves
+  end
+
+  def get_en_passant(game_state)
+    board = game_state[:board]
+    story = game_state[:story]
+    if story.length == 0 then
+      return nil
+    end
+    location = board.get_location(@id)
+    pawn_to_left = location[1] > 0 && !board.board[location[0]][location[1]-1].nil? && board.board[location[0]][location[1]-1].id[0] == "P"
+    if pawn_to_left then
+      if story[story.length-1][1] == [location[0], location[1]-1] then
+        return -1
       end
     end
-    return ans
+    pawn_to_right = location[1] > 0 && !board.board[location[0]][location[1]+1].nil? && board.board[location[0]][location[1]+1].id[0] == "P"
+    if pawn_to_right then
+      if story[story.length-1][1] == [location[0], location[1]+1] then
+        return +1
+      end
+    end
+    return nil
   end
 end

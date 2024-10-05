@@ -5,10 +5,11 @@ class Bishop < Piece
   attr_reader :id
   def initialize(id = "B")
     @id = id
-    @color = id[id.length-1]
   end
 
-  def moves(board)
+  def moves(game_state)
+    board = game_state[:board]
+    color = @id[2]
     y, x = board.get_location(@id)
     ds = []
     default_moves = [[-1, 1], [1, 1], [1, -1], [-1, -1]]
@@ -20,7 +21,7 @@ class Bishop < Piece
         ny, nx = ny+dy, nx+dx
         board_status = board.status(ny, nx)
       end
-      if ![@color, nil].include?(board_status) then
+      if ![color, nil].include?(board_status) then
         ds.push([ny-y, nx-x])
       end
     end
