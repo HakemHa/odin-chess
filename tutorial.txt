@@ -1,0 +1,10 @@
+          Tutorial
+
+    How to play chess? 
+    - To learn how to play chess visit https://www.chess.com/learn-how-to-play-chess#special-rules-chess
+
+    How to use this program?
+    - Use arrow keys (←, ↑, →, ↓) to choose a move and press enter or space to confirm choice. 
+    - To exit press e(xit) or q(uit).
+    - To save press s(ave).
+    - If cheats are on you can go through the story of the game with p(revious) and n(ext)

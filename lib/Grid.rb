@@ -1,8 +1,9 @@
 class Grid
 
-  attr_accessor :board
+  attr_accessor :board, :selected
   def initialize
     @board = Array.new(8) { Array.new(8) }
+    @selected = nil
   end
 
   def place(y, x, piece)

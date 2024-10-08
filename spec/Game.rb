@@ -87,9 +87,12 @@ describe Game do
   context "#select_from" do
     game = Game.new("hard_exit")
     it "selects from list" do
-      list = [0, 1, 2, 3]
+      list = [[0, 0], [1, 0], [2, 0]]
       index = 0
       allow(Player).to receive(:play).and_return(index+1, index, ".")
+      result = game.select_from(list, index, {})
+      expected = list[index]
+      expect(result).to eq(expected)
     end
   end
 
@@ -877,7 +880,7 @@ describe Game do
   end
 
   context "when changing settings" do
-    
+    # Composite function
   end
 
   context "when trying to exit" do

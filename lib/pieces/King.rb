@@ -35,7 +35,7 @@ class King < Piece
     story = game_state[:story]
     king_start = @id[2] == "W" ? [7, 4] : [0, 4]
     king_moved = story.find { |move1, move2, piece| move1 == king_start }
-    if !king_moved then
+    if king_moved.nil? then
       unavailable_columns = get_unavailable_columns(game_state)
       left_rook_moved = story.find { |move1, move2, piece| move1 == [king_start[0], 0] }
       if !left_rook_moved then
@@ -62,21 +62,24 @@ class King < Piece
     board = game_state[:board]
     color = @id[2]
     row_index = color == "W" ? 7 : 0
+    occupied_cols = [0, 4, 7]
     for row in board.board do
       for piece in row do
-        if !piece.nil? && piece.id[2] != color then
+        if !piece.nil? then
           piece_location = board.get_location(piece.id)
-          if piece_location[0] == row_index then
+          if piece_location[0] == row_index && !occupied_cols.include?(piece_location[1]) then
             unavailable_columns |= [piece_location[1]]
           end
-          if piece.id[0] == "K" then
-            if (piece_location[0]-row_index).abs <= 1 then
-              unavailable_columns |= [piece_location[1], [piece_location[1]+1, 7].max, [piece_location[1]-1, 0].min]
-            end
-          else
-            for move in piece.moves(game_state) do
-              if move[0] == row_index then
-                unavailable_columns |= [move[1]]
+          if piece.id[2] != color then
+            if piece.id[0] == "K" then
+              if (piece_location[0]-row_index).abs <= 1 then
+                unavailable_columns |= [piece_location[1], [piece_location[1]+1, 7].max, [piece_location[1]-1, 0].min]
+              end
+            else
+              for move in piece.moves(game_state) do
+                if move[0] == row_index then
+                  unavailable_columns |= [move[1]]
+                end
               end
             end
           end

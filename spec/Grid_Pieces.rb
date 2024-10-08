@@ -426,7 +426,22 @@ describe "Grid" do
         move_grid.place(7, 4, king)
         move_grid.place(7, 0, left_rook)
         move_grid.place(7, 7, right_rook)
-        move_grid.place(7, 2, Bishop.new("R1B"))
+        move_grid.place(7, 2, Bishop.new("B1B"))
+        state = {board: move_grid, story: []}
+        result = king.moves(state)
+        expected = [[6, 4], [6, 3], [6, 5], [7, 3], [7, 5], [7, 6]]
+        expect(((result-expected) + (expected-result))).to be_empty
+      end
+
+      it "can't castle if piece in the way of same color" do
+        move_grid = Grid.new
+        king = King.new("K1W")
+        left_rook = Rook.new("R1W")
+        right_rook = Rook.new("R2W")
+        move_grid.place(7, 4, king)
+        move_grid.place(7, 0, left_rook)
+        move_grid.place(7, 7, right_rook)
+        move_grid.place(7, 2, Bishop.new("B1W"))
         state = {board: move_grid, story: []}
         result = king.moves(state)
         expected = [[6, 4], [6, 3], [6, 5], [7, 3], [7, 5], [7, 6]]

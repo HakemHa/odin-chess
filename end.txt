@@ -1,0 +1,4 @@
+         Game Over
+
+       Player ♔ won!
+The game ended in draw by stalemate!

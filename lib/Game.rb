@@ -3,46 +3,136 @@ require 'set'
 Dir[File.join(__dir__, '/pieces', "*")].each { |file| require file }
 require_relative "./Grid"
 require_relative "./Player"
+require_relative "./Render"
 
 class Game
   EXIT_CODES = ["e", "fe"]
+  PLAYERS = [
+    "Human",
+    "Random",
+    "Easy", 
+    "Medium",
+    "Hard"
+  ]
+
 
   def initialize(page = "start")
     @game_state = nil
-    @settings_state = nil
-    while page != "hard_exit" do
+    @settings_state = {player1: PLAYERS[0], player2: PLAYERS[0], cheats: false}
+    came_from = nil
+    Render.open
+    while page != "fe" do
       case page
       when "start"
+        came_from = "start"
         page = start_game
         next
       when "play"
+        came_from = "play"
         page = play_game(@game_state, @settings_state)
         next
       when "tutorial"
+        came_from = "tutorial"
         page = tutorial_game
         next
       when "settings"
+         came_from = "settings"
         page = settings_game(@game_state, @settings_state)
         next
-      when "exit"
-        page = exit_game(@game_state, @settings_state)
+      when "e"
+        page = exit_game(@game_state, @settings_state, came_from)
         next
       when "end"
+        came_from = "end"
         page = end_game(@game_state, @settings_state)
         next
       else
-        page = "hard_exit"
+        page = "fe"
       end
     end
+    Render.close
   end
 
   def settings_game(game_state, settings_state)
-    print("These settings here should help you", "\n")
+    options = ["player1", "player2", "cheats", "quit"]
+    page = "self"
+    selected = 0
+    while page != "quit" do
+      act = method(:settings_act)
+      exit_codes = [".", "<"]
+      input = nil
+      while !exit_codes.include?(input)
+        Render.settings_game(options, selected, settings_state)
+        input = Player.handle_input(nil, act, selected, options)
+        return input if exit_game?(input)
+        if !exit_codes.include?(input) then
+          selected = input || 0
+        end
+      end
+      if input == "." then
+        case options[selected]
+        when "player1"
+          result = player_settings(settings_state, :player1)
+          return result if exit_game?(result)
+          next
+        when "player2"
+          result = player_settings(settings_state, :player2)
+          return result if exit_game?(result)
+          next
+        when "cheats"
+          settings_state[:cheats] = !settings_state[:cheats]
+          next
+        when "quit"
+          page = "quit"
+          next
+        end
+      elsif input == "<"
+        page = "quit"
+      end
+    end
     return "start"
   end
 
+  def player_settings(settings_state, player)
+    options = PLAYERS
+    selected = options.find_index(settings_state[player])
+    act = method(:settings_act)
+    exit_codes = [".", "<"]
+    input = nil
+    while !exit_codes.include?(input)
+      last = player.to_s[player.to_s.length-1]
+      Render.player_settings(options, selected, last)
+      input = Player.handle_input(nil, act, selected, options)
+      return input if exit_game?(input)
+      if !exit_codes.include?(input) then
+        selected = input || 0
+      end
+    end
+    settings_state[player] = options[selected]
+  end
+
+  def settings_act(input, state)
+    selected, options_length = state[0], state[1].length
+    case input
+    when "+1"
+      selected = (selected+1)%options_length
+    when "-1"
+      selected = (selected-1+options_length)%options_length
+    when "submit"
+      "."
+    when "reset"
+      "<"
+    when "exit"
+      return "e"
+    when "hard_exit"
+      return "fe"
+    else
+      return nil
+    end
+  end
+
   def tutorial_game
-    print("Here is how to play the game chess", "\n")
+    Render.tutorial
     return "start"
   end
 
@@ -104,33 +194,43 @@ class Game
   end
 
   def make_play(game_state, settings_state)
+    board = game_state[:board]
     valid_moves = get_valid_moves(game_state)
     piece_index = 0
+    previous_location = nil
+    piece_move = nil
     move = nil
     while move.nil? do
+      board.selected = nil
       pieces = valid_moves.keys
-      piece = select_from(pieces, piece_index)
+      piece = select_from(pieces, piece_index, game_state)
       return piece if exit_game?(piece)
+      previous_location = board.get_location(piece.id)
+      board.selected = previous_location 
       piece_index = pieces.find_index(piece)
       piece_moves = valid_moves[piece]
-      piece_move = select_from(piece_moves)
+      piece_move = select_from(piece_moves, 0, game_state)
       return piece_move if exit_game?(piece_move)
       next if piece_move == "<"
       move = [piece, piece_move]
     end
+    board.selected = nil
     removed_piece = execute_move(*move, game_state)
-    return move + [removed_piece]
+    moment = [previous_location, piece_move, removed_piece]
+    return moment
   end
 
-  def select_from(list, index = 0)
+  def select_from(list, index, game_state)
     input = nil
-    while input != "."
+    exit_code = "."
+    while input != exit_code
+      Render.select_from(list, index, game_state)
       input = Player.play(index, list.length)
       return input if exit_game?(input)
       if input == "<" && list[index].instance_of?(Array) then
         return input
       end
-      index = input if input != "."
+      index = input if input != exit_code
     end
     return list[index]
   end
@@ -229,7 +329,10 @@ class Game
           end
         end
       else
-        valid_moves[piece] = piece.moves(game_state)
+        moves = piece.moves(game_state)
+        if moves.length > 0 then
+          valid_moves[piece] = piece.moves(game_state)
+        end
       end
     end
     return valid_moves
@@ -289,8 +392,27 @@ class Game
   end
 
   def end_game(game_state, settings_state)
-    print("Game Over", "\n")
+    Render.end_game(winner(game_state))
     return "exit"
+  end
+
+  def winner(game_state)
+    if get_valid_moves(game_state) == {} then
+      if game_state[:turn] == 0 then
+        return "B"
+      else
+        return "W"
+      end
+    else
+      if stalemate?(game_state) then
+        return "stalemate"
+      elsif threefold?(game_state) then
+        return "threefold"
+      elsif move50?(game_state) then
+        return "50 moves"
+      end
+    end
+    return "mutual agreement"
   end
 
   def game_over?(game_state)
@@ -310,31 +432,26 @@ class Game
     return false
   end
 
-  def exit_game(game_state, settings_state)
-    return "hard_exit"
-  end
-
-  def start_game
-    options = ["play", "tutorial", "settings", "exit"]
+  def exit_game(game_state, settings_state, page = "start")
+    return "hard_exit" if game_state.nil?
+    options = ["yes", "no"]
     selected = 0
-    act = method(:options_act)
+    act = method(:exit_act)
     exit_codes = [".", "e", "fe"]
     input = nil
     while !exit_codes.include?(input)
-      print("Start Game: #{options[selected]}", "\n")
+      Render.exit_game(options, selected)
       input = Player.handle_input(nil, act, selected, options)
+      return input if exit_game?(input)
       if !exit_codes.include?(input) then
         selected = input || 0
       end
     end
-    if input == "." then
-      return options[selected]
-    else
-      return input
-    end
+    return page if options[selected] == "no"
+    return "hard_exit"
   end
 
-  def options_act(input, state)
+  def exit_act(input, state)
     selected, options_length = state[0], state[1].length
     case input
     when "+1"
@@ -346,9 +463,48 @@ class Game
     when "reset"
       nil
     when "exit"
-      return "exit"
+      nil
     when "hard_exit"
-      return "hard_exit"
+      return "fe"
+    else
+      return nil
+    end
+  end
+
+  def start_game
+    options = ["play", "tutorial", "settings", "exit"]
+    selected = 0
+    act = method(:start_act)
+    exit_code = "."
+    input = nil
+    while input != exit_code
+      Render.start_game(options, selected)
+      input = Player.handle_input(nil, act, selected, options)
+      return input if exit_game?(input)
+      selected = input if input != exit_code
+    end
+    if input == "." then
+      return options[selected]
+    else
+      return input
+    end
+  end
+
+  def start_act(input, state)
+    selected, options_length = state[0], state[1].length
+    case input
+    when "+1"
+      selected = (selected+1)%options_length
+    when "-1"
+      selected = (selected-1+options_length)%options_length
+    when "submit"
+      "."
+    when "reset"
+      nil
+    when "exit"
+      return "e"
+    when "hard_exit"
+      return "fe"
     else
       return nil
     end
@@ -357,12 +513,14 @@ class Game
   def pretty_print(game_state)
     turn = game_state[:turn]
     board = game_state[:board]
-    print("Turn: ", turn, "\n")
+    $stdout.print("Turn: ", turn, "\n")
     for row in board.board do
       pretty_row = row.map { |piece| piece.nil? ? "   " : piece.id }
       pretty_row = pretty_row.join(" | ")
       long_line = "_"*45
-      print(pretty_row, "\n", long_line, "\n")
+      $stdout.print(pretty_row, "\n", long_line, "\n")
     end
   end
 end
+
+Game.new
