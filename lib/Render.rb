@@ -221,6 +221,16 @@ class Render
     if !piece.nil? then
         piece_text = PIECES[piece_id[piece.id[0]]]
         piece_color = piece.id[2] == "W" ? white_color : black_color
+        if options.include?([y, x]) then
+          copy_color = option_color
+          copy_color[2] = '4'
+          piece_color += copy_color
+          if options[selected] == [y, x] then
+            copy_color = selected_color
+            copy_color[2] = '4'
+            piece_color += copy_color
+          end
+        end
     else
       if options.include?([y, x]) then
         piece_text = PIECES[:move]
@@ -259,9 +269,9 @@ class Render
     $stdout.print("    Game Over", "\n")
     if ["W", "B"].include?(winner) then
       piece = winner == "W" ? "♔" : "♚"
-      $stdount.print("    Player #{piece} won!")
+      $stdout.print("    Player #{piece} won!", "\n")
     else
-      $stdount.print("The game ended in draw by #{winner}!")
+      $stdout.print("The game ended in draw by #{winner}!", "\n")
     end
   end
 
