@@ -1,6 +1,0 @@
-          Settings
-
-  ♖ Player ♔: Human Random Easy Medium Hard
-  ♖ Player ♚: Human Random Easy Medium Hard
-  ♖ Cheats: Off
-  ♖ Quit

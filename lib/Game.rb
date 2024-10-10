@@ -393,6 +393,7 @@ class Game
 
   def end_game(game_state, settings_state)
     Render.end_game(winner(game_state))
+    STDIN.getch
     return "exit"
   end
 
