@@ -41,18 +41,24 @@ class Pawn < Piece
     if story.length == 0 then
       return nil
     end
-    location = board.get_location(@id)
-    pawn_to_left = location[1] > 0 && !board.board[location[0]][location[1]-1].nil? && board.board[location[0]][location[1]-1].id[0] == "P"
-    if pawn_to_left then
-      if story[story.length-1][1] == [location[0], location[1]-1] then
-        return -1
-      end
+    my_row, my_col = board.get_location(@id)
+    color = @id[2]
+    passant_row = color == "W" ? 3 : 4
+    if my_row != passant_row then
+      return nil
     end
-    pawn_to_right = location[1] > 0 && !board.board[location[0]][location[1]+1].nil? && board.board[location[0]][location[1]+1].id[0] == "P"
-    if pawn_to_right then
-      if story[story.length-1][1] == [location[0], location[1]+1] then
-        return +1
-      end
+    last_move_row, last_move_col = story[story.length-1][1]
+    if last_move_row != passant_row then
+      return nil
+    end
+    close = (my_col-last_move_col).abs == 1
+    if !close then
+      return nil
+    end
+    is_enemy = board.board[last_move_row][last_move_col].id[2] != color
+    is_pawn = board.board[last_move_row][last_move_col].id[0] == "P"
+    if is_enemy && is_pawn then
+      return (last_move_col-my_col)
     end
     return nil
   end
