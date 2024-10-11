@@ -14,7 +14,7 @@ describe "Grid" do
   end
 
   describe "Moves:" do
-    context "when placing a pawn" do
+    context "when placing a white pawn" do
       it "can move forward if grid is empty" do
         move_grid = Grid.new
         pawn = Pawn.new("P1W")
@@ -66,6 +66,50 @@ describe "Grid" do
         state = {board: move_grid, story: [[[1, 3], [3, 3], nil]]}
         result = pawn.moves(state)
         expected = [[2, 3], [2, 4]]
+        expect(((result-expected) + (expected-result))).to be_empty
+      end
+
+      it "can't en passant if enemy pawn hasn't just moved two squares forward" do
+        move_grid = Grid.new
+        pawn = Pawn.new("P1W")
+        move_grid.place(3, 4, pawn)
+        move_grid.place(3, 3, Pawn.new("P2B"))
+        state = {board: move_grid, story: [[[1, 3], [3, 3], nil], [[0, 0], [0, 0], nil]]}
+        result = pawn.moves(state)
+        expected = [[2, 4]]
+        expect(((result-expected) + (expected-result))).to be_empty
+      end
+
+      it "can't en passant if enemy pawn hasn't moved two squares forward" do
+        move_grid = Grid.new
+        pawn = Pawn.new("P1W")
+        move_grid.place(2, 4, pawn)
+        move_grid.place(2, 3, Pawn.new("P2B"))
+        state = {board: move_grid, story: [[[1, 3], [2, 3], nil]]}
+        result = pawn.moves(state)
+        expected = [[1, 4]]
+        expect(((result-expected) + (expected-result))).to be_empty
+      end
+
+      it "can't en passant if enemy isn't pawn" do
+        move_grid = Grid.new
+        pawn = Pawn.new("P1W")
+        move_grid.place(3, 4, pawn)
+        move_grid.place(3, 3, Rook.new("R2B"))
+        state = {board: move_grid, story: [[[1, 3], [3, 3], nil]]}
+        result = pawn.moves(state)
+        expected = [[2, 4]]
+        expect(((result-expected) + (expected-result))).to be_empty
+      end
+
+      it "can't en passant if enemy pawn isn't adjacent" do
+        move_grid = Grid.new
+        pawn = Pawn.new("P1W")
+        move_grid.place(3, 4, pawn)
+        move_grid.place(3, 1, Pawn.new("P2B"))
+        state = {board: move_grid, story: [[[1, 1], [3, 1], nil]]}
+        result = pawn.moves(state)
+        expected = [[2, 4]]
         expect(((result-expected) + (expected-result))).to be_empty
       end
     end
@@ -122,6 +166,50 @@ describe "Grid" do
         state = {board: move_grid, story: [[[6, 3], [4, 3], nil]]}
         result = pawn.moves(state)
         expected = [[5, 3], [5, 4]]
+        expect(((result-expected) + (expected-result))).to be_empty
+      end
+
+      it "can't en passant if enemy pawn hasn't just moved two squares forward" do
+        move_grid = Grid.new
+        pawn = Pawn.new("P1B")
+        move_grid.place(4, 4, pawn)
+        move_grid.place(4, 3, Pawn.new("P2W"))
+        state = {board: move_grid, story: [[[6, 3], [5, 3], nil], [[0, 0], [0, 0], nil]]}
+        result = pawn.moves(state)
+        expected = [[5, 4]]
+        expect(((result-expected) + (expected-result))).to be_empty
+      end
+
+      it "can't en passant if enemy pawn hasn't moved two squares forward" do
+        move_grid = Grid.new
+        pawn = Pawn.new("P1B")
+        move_grid.place(5, 4, pawn)
+        move_grid.place(5, 3, Pawn.new("P2W"))
+        state = {board: move_grid, story: [[[6, 3], [5, 3], nil]]}
+        result = pawn.moves(state)
+        expected = [[6, 4]]
+        expect(((result-expected) + (expected-result))).to be_empty
+      end
+
+      it "can't en passant if enemy isn't pawn" do
+        move_grid = Grid.new
+        pawn = Pawn.new("P1B")
+        move_grid.place(4, 4, pawn)
+        move_grid.place(4, 3, Rook.new("R2W"))
+        state = {board: move_grid, story: [[[6, 3], [4, 3], nil]]}
+        result = pawn.moves(state)
+        expected = [[5, 4]]
+        expect(((result-expected) + (expected-result))).to be_empty
+      end
+
+      it "can't en passant if enemy pawn isn't adjacent" do
+        move_grid = Grid.new
+        pawn = Pawn.new("P1B")
+        move_grid.place(4, 4, pawn)
+        move_grid.place(4, 2, Pawn.new("P2W"))
+        state = {board: move_grid, story: [[[6, 2], [4, 2], nil]]}
+        result = pawn.moves(state)
+        expected = [[5, 4]]
         expect(((result-expected) + (expected-result))).to be_empty
       end
     end
