@@ -200,7 +200,7 @@ class Game
     player_mode = game_state[:turn] == 0 ? settings_state[:player1] : settings_state[:player2]
     case player_mode
     when "Human"
-      move = get_move_human(game_state)
+      move = get_move_human(game_state, settings_state)
       return move if exit_game?(move)
     else
       move = get_move_computer(player_mode, game_state)
@@ -219,7 +219,7 @@ class Game
     return Computer.play(mode, game_state)
   end
 
-  def self.get_move_human(game_state)
+  def self.get_move_human(game_state, settings_state)
     board = game_state[:board]
     valid_moves = get_valid_moves(game_state)
     piece_index = 0
@@ -419,7 +419,7 @@ class Game
   end
 
   def self.winner(game_state)
-    if get_valid_moves(game_state) == {} then
+    if checkmate?(game_state) then
       if game_state[:turn] == 0 then
         return "B"
       else
@@ -439,19 +439,40 @@ class Game
 
   def self.game_over?(game_state)
     # mutual
-    get_valid_moves(game_state) == {} || stalemate?(game_state) || threefold?(game_state) || move50?(game_state)
+    checkmate?(game_state) || stalemate?(game_state) || threefold?(game_state) || move50?(game_state)
+  end
+
+  def self.checkmate?(game_state)
+    no_more_moves = get_valid_moves(game_state) == {}
+    in_check = in_check?(game_state)
+    return no_more_moves && in_check
   end
 
   def self.stalemate?(game_state)
-    return false
+    no_more_moves = get_valid_moves(game_state) == {}
+    checkmate = checkmate?(game_state)
+    puts("OK? #{[no_more_moves, checkmate, get_valid_moves(game_state)]}")
+    return no_more_moves && !checkmate
   end
 
   def self.threefold?(game_state)
-    return false
+    story = game_state[:story]
+    if story.length < 6 then
+      return false
+    end
+    last_move1 = story[story.length-1]
+    last_move2 = story[story.length-2]
+    previous_last_move1 = story[story.length-5]
+    previous_last_move2 = story[story.length-6]
+    return last_move1 == previous_last_move1 && last_move2 == previous_last_move2
   end
 
   def self.move50?(game_state)
-    return false
+    story = game_state[:story]
+    if story.length < 50 then
+      return false
+    end
+    return story[story.length-50...story.length].all? { |move| move[2].nil? }
   end
 
   def self.exit_game(game_state, settings_state, page = "start")

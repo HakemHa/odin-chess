@@ -58,6 +58,18 @@ describe "Grid" do
         expect(((result-expected) + (expected-result))).to be_empty
       end
 
+      it "can't eat diagonally piece of same color" do
+        move_grid = Grid.new
+        pawn = Pawn.new("P1W")
+        move_grid.place(7, 1, pawn)
+        move_grid.place(6, 0, Pawn.new("P2W"))
+        move_grid.place(6, 2, Pawn.new("P2W"))
+        state = {board: move_grid, story: []}
+        result = pawn.moves(state)
+        expected = [[6, 1]]
+        expect(((result-expected) + (expected-result))).to be_empty
+      end
+
       it "can en passant" do
         move_grid = Grid.new
         pawn = Pawn.new("P1W")
@@ -155,6 +167,18 @@ describe "Grid" do
         state = {board: move_grid, story: []}
         result = pawn.moves(state)
         expected = [[1, 1], [1, 0], [1, 2]]
+        expect(((result-expected) + (expected-result))).to be_empty
+      end
+
+      it "can't eat diagonally piece of same color" do
+        move_grid = Grid.new
+        pawn = Pawn.new("P1B")
+        move_grid.place(0, 1, pawn)
+        move_grid.place(1, 0, Pawn.new("P2B"))
+        move_grid.place(1, 2, Pawn.new("P2B"))
+        state = {board: move_grid, story: []}
+        result = pawn.moves(state)
+        expected = [[1, 1]]
         expect(((result-expected) + (expected-result))).to be_empty
       end
 

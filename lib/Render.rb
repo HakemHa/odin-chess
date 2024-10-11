@@ -176,9 +176,13 @@ class Render
 
     How to use this program?
     - Use arrow keys (←, ↑, →, ↓) to choose a move and press enter or space to confirm choice. 
-    - To exit press e(xit) or q(uit).
-    - To save press s(ave).
+    - To exit press e(xit) or q(uit)
+    - To save press s(ave)
     - If cheats are on you can go through the story of the game with p(revious) and n(ext)
+      - Going back doesn't prevent you from returning to the state you left the game, 
+        but if you make a new move all the moves following the point you changed can't
+        be accessed anymore
+    - To forfeit press f, to ask for a draw press d (only available against a human)
     
     Press any key to exit tutorial.
     TUTORIAL
