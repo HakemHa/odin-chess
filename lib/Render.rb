@@ -248,7 +248,14 @@ class Render
 
   def self.make_play(game_state)
     system("clear")
-    return Game.pretty_print(game_state)
+    for y in 0...8 do
+      for x in 0...8 do
+        piece_text, piece_color = get_piece_render(y, x, [0], 0, game_state)
+        background_color = get_background_color(y, x, [0], 0, game_state)
+        render_block(y, x, piece_text, piece_color, background_color)
+      end
+      print("\n\n")
+    end
   end
 
   def self.render_block(y, x, piece_text, piece_color, background_color)
