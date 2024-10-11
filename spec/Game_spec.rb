@@ -1,6 +1,10 @@
 require 'set'
 require_relative "../lib/Game"
 
+def system(*not_important)
+  nil
+end
+
 # Tests for game
 # Test play_game
 #    Test move50
@@ -86,10 +90,21 @@ describe Game do
 
   context "#select_from" do
     game = Game.new("hard_exit")
-    it "selects from list" do
+    it "selects from list when selecting piece" do
+      list = [Pawn.new("P1W"), Rook.new("R1W"), King.new("K1W")]
+      index = 0
+      allow(Player).to receive(:play).and_return(index+1, index, ".")
+      allow(Render). to receive(:select_from).and_return(nil)
+      result = game.select_from(list, index, {})
+      expected = Pawn.new("P1W")
+      expect(result.id).to eq(expected.id)
+    end
+
+    it "selects from list when selecting move" do
       list = [[0, 0], [1, 0], [2, 0]]
       index = 0
       allow(Player).to receive(:play).and_return(index+1, index, ".")
+      allow(Render). to receive(:select_from).and_return(nil)
       result = game.select_from(list, index, {})
       expected = list[index]
       expect(result).to eq(expected)

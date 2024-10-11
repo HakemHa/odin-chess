@@ -1,4 +1,4 @@
-require_relative "./Grid_Pieces"
+require_relative "./Grid_Pieces_spec"
 require_relative "../lib/Player"
 
 describe "Player" do

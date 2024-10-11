@@ -523,5 +523,3 @@ class Game
     end
   end
 end
-
-Game.new
