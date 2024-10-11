@@ -3,6 +3,7 @@ require 'set'
 Dir[File.join(__dir__, '/pieces', "*")].each { |file| require file }
 require_relative "./Grid"
 require_relative "./Player"
+require_relative "./Computer"
 require_relative "./Render"
 
 class Game
@@ -17,7 +18,7 @@ class Game
 
 
   def initialize(page = "start")
-    @game_state = nil
+    @game_state = {}
     @settings_state = {player1: PLAYERS[0], player2: PLAYERS[0], cheats: false}
     came_from = nil
     Render.open
@@ -25,26 +26,26 @@ class Game
       case page
       when "start"
         came_from = "start"
-        page = start_game
+        page = Game.start_game
         next
       when "play"
         came_from = "play"
-        page = play_game(@game_state, @settings_state)
+        page = Game.play_game(@game_state, @settings_state)
         next
       when "tutorial"
         came_from = "tutorial"
-        page = tutorial_game
+        page = Game.tutorial_game
         next
       when "settings"
          came_from = "settings"
-        page = settings_game(@game_state, @settings_state)
+        page = Game.settings_game(@game_state, @settings_state)
         next
       when "e"
-        page = exit_game(@game_state, @settings_state, came_from)
+        page = Game.exit_game(@game_state, @settings_state, came_from)
         next
       when "end"
         came_from = "end"
-        page = end_game(@game_state, @settings_state)
+        page = Game.end_game(@game_state, @settings_state)
         next
       else
         page = "fe"
@@ -53,7 +54,7 @@ class Game
     Render.close
   end
 
-  def settings_game(game_state, settings_state)
+  def self.settings_game(game_state, settings_state)
     options = ["player1", "player2", "cheats", "quit"]
     page = "self"
     selected = 0
@@ -93,7 +94,7 @@ class Game
     return "start"
   end
 
-  def player_settings(settings_state, player)
+  def self.player_settings(settings_state, player)
     options = PLAYERS
     selected = options.find_index(settings_state[player])
     act = method(:settings_act)
@@ -111,7 +112,7 @@ class Game
     settings_state[player] = options[selected]
   end
 
-  def settings_act(input, state)
+  def self.settings_act(input, state)
     selected, options_length = state[0], state[1].length
     case input
     when "+1"
@@ -131,15 +132,14 @@ class Game
     end
   end
 
-  def tutorial_game
+  def self.tutorial_game
     Render.tutorial
     return "start"
   end
 
-  def play_game(game_state, settings_state)
-    if game_state.nil? then
-      game_state = create_game_state
-      @game_state = game_state
+  def self.play_game(game_state, settings_state)
+    if game_state.empty? then
+      create_game_state(game_state)
     end
     while !game_over?(game_state) do
       move = make_play(game_state, settings_state)
@@ -150,15 +150,18 @@ class Game
     return "end"
   end
 
-  def create_game_state
+  def self.create_game_state(game_state)
     turn = 0
     board = Grid.new
     populate_board(board)
     story = []
-    return {turn: turn, board: board, story: story}
+    game_state[:turn] = turn
+    game_state[:board] = board
+    game_state[:story] = story
+    return game_state
   end
 
-  def populate_board(board)
+  def self.populate_board(board)
     order = ["R1", "H1", "B1", "Q1", "K1", "B2", "H2", "R2"]
     for i in 0...8 do
       pawn_id = "P" + (i+1).to_s + "W"
@@ -176,7 +179,7 @@ class Game
     end
   end
 
-  def str_to_piece(str)
+  def self.str_to_piece(str)
     case str[0]
     when "P"
       return Pawn.new(str)
@@ -193,20 +196,40 @@ class Game
     end
   end
 
-  def make_play(game_state, settings_state)
+  def self.make_play(game_state, settings_state)
+    player_mode = game_state[:turn] == 0 ? settings_state[:player1] : settings_state[:player2]
+    case player_mode
+    when "Human"
+      move = get_move_human(game_state)
+      return move if exit_game?(move)
+    else
+      move = get_move_computer(player_mode, game_state)
+      return move if exit_game?(move)
+    end
+    previous_location = game_state[:board].get_location(move[0].id)
+    piece_move = move[1]
+    removed_piece = execute_move(*move, game_state)
+    Render.make_play(game_state)
+    sleep(0.2)
+    moment = [previous_location, piece_move, removed_piece]
+    return moment
+  end
+
+  def self.get_move_computer(mode, game_state)
+    return Computer.play(mode, game_state)
+  end
+
+  def self.get_move_human(game_state)
     board = game_state[:board]
     valid_moves = get_valid_moves(game_state)
     piece_index = 0
-    previous_location = nil
-    piece_move = nil
     move = nil
     while move.nil? do
       board.selected = nil
       pieces = valid_moves.keys
       piece = select_from(pieces, piece_index, game_state)
       return piece if exit_game?(piece)
-      previous_location = board.get_location(piece.id)
-      board.selected = previous_location 
+      board.selected = board.get_location(piece.id)
       piece_index = pieces.find_index(piece)
       piece_moves = valid_moves[piece]
       piece_move = select_from(piece_moves, 0, game_state)
@@ -215,12 +238,10 @@ class Game
       move = [piece, piece_move]
     end
     board.selected = nil
-    removed_piece = execute_move(*move, game_state)
-    moment = [previous_location, piece_move, removed_piece]
-    return moment
+    return move
   end
 
-  def select_from(list, index, game_state)
+  def self.select_from(list, index, game_state)
     input = nil
     exit_code = "."
     while input != exit_code
@@ -230,12 +251,12 @@ class Game
       if input == "<" && list[index].instance_of?(Array) then
         return input
       end
-      index = input if input != exit_code
+      index = input if input != exit_code && input != '<'
     end
     return list[index]
   end
 
-  def execute_move(piece, move, game_state)
+  def self.execute_move(piece, move, game_state)
     board = game_state[:board]
     piece_location = board.get_location(piece.id)
     en_passant = false
@@ -257,7 +278,7 @@ class Game
     end
   end
 
-  def do_en_passant(piece, move, game_state)
+  def self.do_en_passant(piece, move, game_state)
     board = game_state[:board]
     piece_location = board.get_location(piece.id)
     color = piece.id[2]
@@ -273,7 +294,7 @@ class Game
     return "en_passant#{removed_piece.nil? ? nil : removed_piece.id}"
   end
 
-  def do_castle(piece, move, game_state)
+  def self.do_castle(piece, move, game_state)
     board = game_state[:board]
     piece_location = board.get_location(piece.id)
     board.remove(piece_location[0], piece_location[1])
@@ -290,7 +311,7 @@ class Game
     return "castle"
   end
 
-  def do_turn_to_queen(piece, move, game_state)
+  def self.do_turn_to_queen(piece, move, game_state)
     board = game_state[:board]
     color = piece.id[2]
     piece_location = board.get_location(piece.id)
@@ -301,7 +322,7 @@ class Game
     return "to_queen#{removed_piece.nil? ? nil : removed_piece.id}"
   end
 
-  def do_move(piece, move, game_state)
+  def self.do_move(piece, move, game_state)
     board = game_state[:board]
     piece_location = board.get_location(piece.id)
     removed_piece = board.board[move[0]][move[1]]
@@ -310,7 +331,7 @@ class Game
     return removed_piece.nil? ? nil : removed_piece.id
   end
 
-  def get_valid_moves(game_state)
+  def self.get_valid_moves(game_state)
     turn = game_state[:turn]
     board = game_state[:board]
     color = turn == 0 ? "W" : "B"
@@ -338,7 +359,7 @@ class Game
     return valid_moves
   end
 
-  def is_valid_move?(move, game_state)
+  def self.is_valid_move?(move, game_state)
     board = game_state[:board]
     turn = game_state[:turn]
     story = game_state[:story]
@@ -360,7 +381,7 @@ class Game
     return !in_check?(copy_game_state)
   end
 
-  def in_check?(game_state)
+  def self.in_check?(game_state)
     board = game_state[:board]
     turn = game_state[:turn]
     color = turn == 0 ? "W" : "B"
@@ -375,7 +396,7 @@ class Game
     return false
   end
 
-  def get_valid_pieces(board, color)
+  def self.get_valid_pieces(board, color)
     valid_pieces = []
     for row in board.board do
       for piece in row do
@@ -387,17 +408,17 @@ class Game
     return valid_pieces
   end
 
-  def exit_game?(input)
+  def self.exit_game?(input)
     EXIT_CODES.include?(input)
   end
 
-  def end_game(game_state, settings_state)
+  def self.end_game(game_state, settings_state)
     Render.end_game(winner(game_state))
     STDIN.getch
     return "exit"
   end
 
-  def winner(game_state)
+  def self.winner(game_state)
     if get_valid_moves(game_state) == {} then
       if game_state[:turn] == 0 then
         return "B"
@@ -416,24 +437,24 @@ class Game
     return "mutual agreement"
   end
 
-  def game_over?(game_state)
+  def self.game_over?(game_state)
     # mutual
     get_valid_moves(game_state) == {} || stalemate?(game_state) || threefold?(game_state) || move50?(game_state)
   end
 
-  def stalemate?(game_state)
+  def self.stalemate?(game_state)
     return false
   end
 
-  def threefold?(game_state)
+  def self.threefold?(game_state)
     return false
   end
 
-  def move50?(game_state)
+  def self.move50?(game_state)
     return false
   end
 
-  def exit_game(game_state, settings_state, page = "start")
+  def self.exit_game(game_state, settings_state, page = "start")
     return "hard_exit" if game_state.nil?
     options = ["yes", "no"]
     selected = 0
@@ -452,7 +473,7 @@ class Game
     return "hard_exit"
   end
 
-  def exit_act(input, state)
+  def self.exit_act(input, state)
     selected, options_length = state[0], state[1].length
     case input
     when "+1"
@@ -472,7 +493,7 @@ class Game
     end
   end
 
-  def start_game
+  def self.start_game
     options = ["play", "tutorial", "settings", "exit"]
     selected = 0
     act = method(:start_act)
@@ -491,7 +512,7 @@ class Game
     end
   end
 
-  def start_act(input, state)
+  def self.start_act(input, state)
     selected, options_length = state[0], state[1].length
     case input
     when "+1"
@@ -511,7 +532,7 @@ class Game
     end
   end
 
-  def pretty_print(game_state)
+  def self.pretty_print(game_state)
     turn = game_state[:turn]
     board = game_state[:board]
     $stdout.print("Turn: ", turn, "\n")

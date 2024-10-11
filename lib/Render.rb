@@ -246,6 +246,11 @@ class Render
     return piece_text, piece_color
   end
 
+  def self.make_play(game_state)
+    system("clear")
+    return Game.pretty_print(game_state)
+  end
+
   def self.render_block(y, x, piece_text, piece_color, background_color)
     buffer = ""
     block_height = HEIGHT/8

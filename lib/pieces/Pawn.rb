@@ -22,10 +22,10 @@ class Pawn < Piece
         valid_moves.push([location[0]+2*move, location[1]])
       end
     end
-    if location[1] < 7 && !board.board[location[0]+move][location[1]+1].nil? then
+    if location[1] < 7 && !board.board[location[0]+move][location[1]+1].nil? && board.board[location[0]+move][location[1]+1].id[2] != color then
       valid_moves.push([location[0]+move, location[1]+1])
     end
-    if location[1] > 0 && !board.board[location[0]+move][location[1]-1].nil? then
+    if location[1] > 0 && !board.board[location[0]+move][location[1]-1].nil? && board.board[location[0]+move][location[1]-1].id[2] != color  then
       valid_moves.push([location[0]+move, location[1]-1])
     end
     en_passant = get_en_passant(game_state)
