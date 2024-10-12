@@ -74,16 +74,17 @@ class Render
       option = options[i]
       if i == selected then
         align = get_align(option.length+2, (banner).length, "center")
-        $stdout.print(" "*align, "♙ ", "\e[30;47m", option, "\e[0m", "\n\n")
+        $stdout.print(" "*align, "♙ ", "\e[30;47m", option.capitalize, "\e[0m", "\n\n")
       else
         align = get_align(option.length, (banner).length, "center")
-        $stdout.print(" "*align+option, "\n\n")
+        $stdout.print(" "*align+option.capitalize, "\n\n")
       end
     end
   end
 
-  def self.settings_game(options, selected, settings_state)
+  def self.settings_game(selected, settings_state)
     system("clear")
+    options = settings_state.keys.map { |el| (el.to_s).capitalize } + ["Quit"]
     space = " "*10
     title = "Settings"
     banner = space+title+space
@@ -91,49 +92,48 @@ class Render
     piece = "♖"
     for i in 0...options.length do
       option = options[i]
+      if i == selected then
+        $stdout.print(" ", "#{piece} ", "\e[30;47m")
+      else
+        $stdout.print(" "*3)
+      end
       case option
-      when /^player/
-        state = settings_state[option.to_sym]
-        if i == selected then
-          $stdout.print(" ", "#{piece} ", "\e[30;47m")
-        else
-          $stdout.print(" "*3)
-        end
-        $stdout.print(option.capitalize, "\e[0m", ": ")
-        bold = "\e[1;4m"
-        colors = ["\e[37m", "\e[34m", "\e[32m", "\e[33m", "\e[31m"]
-        types = ["Human", "Random", "Easy", "Medium", "Hard"]
-        for i in 0...types.length do
-          color = colors[i]
-          type = types[i]
-          if state == type then
-            $stdout.print(bold)
-          end
-          $stdout.print(color, type)
-          $stdout.print("\e[0m")
-          if i == types.length-1 then
-            $stdout.print(";")
-          else
-            $stdout.print(", ")
-          end
-        end
-        $stdout.print("\n\n")
-      when "cheats"
-        state = settings_state[option.to_sym]
-        if i == selected then
-          $stdout.print(" ", "#{piece} ", "\e[30;47m")
-        else
-          $stdout.print(" "*3)
-        end
+      when /^Player/
+        render_player_options(option, settings_state)
+      when "Cheats"
+        state = settings_state[option.downcase.to_sym]
         $stdout.print(option, "\e[0m", ": #{state ? "On" : "Off"}", "\n\n")
       else
         if i == selected then
-          $stdout.print(" ", "#{piece} ", "\e[30;47m", option, "\e[0m", "\n\n")
+          $stdout.print(option, "\e[0m", "\n\n")
         else
-          $stdout.print(" "*3+option, "\n\n")
+          $stdout.print(option, "\n\n")
         end
       end
     end
+  end
+
+  def self.render_player_options(option, settings_state)
+    state = settings_state[option.downcase.to_sym]
+    $stdout.print(option, "\e[0m", ": ")
+    bold = "\e[1;4m"
+    colors = ["\e[37m", "\e[34m", "\e[32m", "\e[33m", "\e[31m"]
+    types = ["Human", "Random", "Easy", "Medium", "Hard"]
+    for i in 0...types.length do
+      color = colors[i]
+      type = types[i]
+      if state == type then
+        $stdout.print(bold)
+      end
+      $stdout.print(color, type)
+      $stdout.print("\e[0m")
+      if i == types.length-1 then
+        $stdout.print(";")
+      else
+        $stdout.print(", ")
+      end
+    end
+    $stdout.print("\n\n")
   end
 
   def self.player_settings(options, selected, num)
@@ -175,7 +175,7 @@ class Render
     - To learn how to play chess visit https://www.chess.com/learn-how-to-play-chess#special-rules-chess
 
     How to use this program?
-    - Use arrow keys (←, ↑, →, ↓) to choose a move and press enter or space to confirm choice. 
+    - Use arrow keys (←, ↑, →, ↓) to choose a move and press enter or space to confirm choice
     - To exit press e(xit) or q(uit)
     - To save press s(ave)
     - If cheats are on you can go through the story of the game with p(revious) and n(ext)

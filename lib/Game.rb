@@ -7,7 +7,7 @@ require_relative "./Computer"
 require_relative "./Render"
 
 class Game
-  EXIT_CODES = ["e", "fe"]
+  EXIT_CODES = Player.exit_codes
   PLAYERS = [
     "Human",
     "Random",
@@ -54,83 +54,87 @@ class Game
     Render.close
   end
 
+  def self.get_settings_game_input(selected, settings_state)
+    options_length = settings_state.keys.length + 1
+    act = method(:settings_act)
+    exit_codes = [".", "<"]
+    input = nil
+    while !exit_codes.include?(input)
+      Render.settings_game(selected, settings_state)
+      input = Player.handle_input(act)
+      return input if exit_game?(input)
+      if !exit_codes.include?(input) then
+        selected = (selected+input+options_length)%options_length
+      end
+    end
+    return input, selected
+  end
+
   def self.settings_game(game_state, settings_state)
     options = ["player1", "player2", "cheats", "quit"]
     page = "self"
     selected = 0
     while page != "quit" do
-      act = method(:settings_act)
-      exit_codes = [".", "<"]
-      input = nil
-      while !exit_codes.include?(input)
-        Render.settings_game(options, selected, settings_state)
-        input = Player.handle_input(nil, act, selected, options)
-        return input if exit_game?(input)
-        if !exit_codes.include?(input) then
-          selected = input || 0
-        end
-      end
-      if input == "." then
-        case options[selected]
-        when "player1"
-          result = player_settings(settings_state, :player1)
-          return result if exit_game?(result)
-          next
-        when "player2"
-          result = player_settings(settings_state, :player2)
-          return result if exit_game?(result)
-          next
-        when "cheats"
-          settings_state[:cheats] = !settings_state[:cheats]
-          next
-        when "quit"
-          page = "quit"
-          next
-        end
-      elsif input == "<"
-        page = "quit"
+      input, selected = get_settings_game_input(selected, settings_state)
+      return input if exit_game?(input)
+      if input == "<" || options[selected] == "quit" then
+        break
+      elsif options[selected] == "cheats" then
+        settings_state[:cheats] = !settings_state[:cheats]
+      elsif options[selected][0...6] == "player" then
+        player_settings(settings_state, options[selected])
       end
     end
     return "start"
   end
 
-  def self.player_settings(settings_state, player)
-    options = PLAYERS
-    selected = options.find_index(settings_state[player])
-    act = method(:settings_act)
-    exit_codes = [".", "<"]
-    input = nil
-    while !exit_codes.include?(input)
-      last = player.to_s[player.to_s.length-1]
-      Render.player_settings(options, selected, last)
-      input = Player.handle_input(nil, act, selected, options)
-      return input if exit_game?(input)
-      if !exit_codes.include?(input) then
-        selected = input || 0
-      end
-    end
-    settings_state[player] = options[selected]
-  end
-
-  def self.settings_act(input, state)
-    selected, options_length = state[0], state[1].length
+  def self.settings_act(input)
     case input
-    when "+1"
-      selected = (selected+1)%options_length
-    when "-1"
-      selected = (selected-1+options_length)%options_length
+    when "up"
+      -1
+    when "down"
+      +1
     when "submit"
       "."
     when "reset"
       "<"
-    when "exit"
-      return "e"
-    when "hard_exit"
-      return "fe"
     else
       return nil
     end
   end
+
+  def self.player_settings(settings_state, player)
+    selected = PLAYERS.find_index(settings_state[player.to_sym])
+    act = method(:player_settings_act)
+    exit_codes = [".", "<"]
+    input = nil
+    while !exit_codes.include?(input)
+      player_color = player[player.length-1]
+      Render.player_settings(PLAYERS, selected, player_color)
+      input = Player.handle_input(act)
+      return input if exit_game?(input)
+      if !exit_codes.include?(input) then
+        selected = (selected+input+PLAYERS.length)%PLAYERS.length
+      end
+    end
+    settings_state[player.to_sym] = PLAYERS[selected]
+  end
+
+  def self.player_settings_act(input)
+    case input
+    when "left"
+      -1
+    when "right"
+      +1
+    when "submit"
+      "."
+    when "reset"
+      "<"
+    else
+      return nil
+    end
+  end
+
 
   def self.tutorial_game
     Render.tutorial
@@ -239,7 +243,7 @@ class Game
     end
     board.selected = nil
     return move
-  end 
+  end
 
   def self.select_from(list, index, game_state)
     input = nil
@@ -468,7 +472,7 @@ class Game
     input = nil
     while !exit_codes.include?(input)
       Render.exit_game(options, selected)
-      input = Player.handle_input(nil, act, selected, options)
+      input = Player.handle_input(act)
       return input if exit_game?(input)
       if !exit_codes.include?(input) then
         selected = input || 0
@@ -506,32 +510,21 @@ class Game
     input = nil
     while input != exit_code
       Render.start_game(options, selected)
-      input = Player.handle_input(nil, act, selected, options)
+      input = Player.handle_input(act)
       return input if exit_game?(input)
-      selected = input if input != exit_code
+      selected = (selected+input+options.length)%options.length if input != exit_code
     end
-    if input == "." then
-      return options[selected]
-    else
-      return input
-    end
+    return options[selected]
   end
 
-  def self.start_act(input, state)
-    selected, options_length = state[0], state[1].length
+  def self.start_act(input)
     case input
-    when "+1"
-      selected = (selected+1)%options_length
-    when "-1"
-      selected = (selected-1+options_length)%options_length
+    when "up"
+      -1
+    when "down"
+      +1
     when "submit"
       "."
-    when "reset"
-      nil
-    when "exit"
-      return "e"
-    when "hard_exit"
-      return "fe"
     else
       return nil
     end

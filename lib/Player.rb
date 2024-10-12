@@ -2,24 +2,29 @@ require 'timeout'
 require "io/console"
 
 class Player
-  def self.play(curr_index, moves_length)
-    state = [curr_index, moves_length]
-    validateFunc = nil
+  def self.play
     actFunc = method(:act)
-    Player.handle_input(validateFunc, actFunc, *state)
+    Player.handle_input(actFunc)
   end
   
-  def self.act(input, state)
-    curr_index, moves_length = state[0], state[1]
+  def self.act(input)
     case input
-    when "+1"
-      return (curr_index+1)%moves_length
-    when "-1"
-      return (curr_index-1+moves_length)%moves_length
+    when "up"
+      return "up"
+    when "down"
+      return "down"
+    when "right"
+      return "right"
+    when "left"
+      return "left"
     when "submit"
       return "."
     when "reset"
       return "<"
+    when "p"
+      return "prev"
+    when "n"
+      return "next"
     when "exit"
       return "e"
     when "hard_exit"
@@ -31,23 +36,25 @@ class Player
   
   def self.key_to_command
     {
-      "\e[A" => "+1", 
-      "\e[B" => "-1", 
-      "\e[C" => "+1", 
-      "\e[D" => "-1", 
+      "\e[A" => "up", 
+      "\e[B" => "down", 
+      "\e[C" => "right", 
+      "\e[D" => "left", 
       " " => "submit", 
       "\r" => "submit", 
       "\u007F" => "reset", 
-      "e" => "exit", 
-      "q" => "exit",
-      "\u0003" => "hard_exit",
+      "e" => "e", 
+      "q" => "e",
+      "\u0003" => "fe",
+      "p" => "prev",
+      "n" => "next",
+      "s" => "save",
+      "d" => "draw",
+      "f" => "forfeit",
     }
   end
   
-  def self.handle_input(validate, act, *state)
-    if validate.nil? then
-      validate = method(:validate)
-    end
+  def self.handle_input(act)
     input = nil
     while input.nil? do
       input = STDIN.getch
@@ -61,9 +68,11 @@ class Player
           chars_in_queue = false
         end
       end
-      input = validate.call(input)
+      input = validate(input)
+      return input if exit_codes.include?(input)
+      input = act.call(input)
     end
-    return act.call(input, state)
+    return input
   end
 
   def self.validate(input)
@@ -74,5 +83,9 @@ class Player
       return key_to_command[input]
     end
     return nil
+  end
+
+  def self.exit_codes
+    ["e", "fe"]
   end
 end
