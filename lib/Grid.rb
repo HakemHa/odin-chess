@@ -3,7 +3,6 @@ class Grid
   attr_accessor :board, :selected
   def initialize
     @board = Array.new(8) { Array.new(8) }
-    @selected = nil
   end
 
   def place(y, x, piece)
@@ -34,5 +33,9 @@ class Grid
       end
     end
     return nil, nil
+  end
+
+  def [](y)
+    return @board[y]
   end
 end

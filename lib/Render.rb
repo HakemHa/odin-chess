@@ -82,16 +82,15 @@ class Render
     end
   end
 
-  def self.settings_game(selected, settings_state)
+  def self.settings_game(selected, options, settings_state)
     system("clear")
-    options = settings_state.keys.map { |el| (el.to_s).capitalize } + ["Quit"]
     space = " "*10
     title = "Settings"
     banner = space+title+space
-    $stdout.print(banner, "\n")
+    $stdout.print(banner, "\n\n")
     piece = "♖"
     for i in 0...options.length do
-      option = options[i]
+      option = options[i].capitalize
       if i == selected then
         $stdout.print(" ", "#{piece} ", "\e[30;47m")
       else
@@ -102,13 +101,9 @@ class Render
         render_player_options(option, settings_state)
       when "Cheats"
         state = settings_state[option.downcase.to_sym]
-        $stdout.print(option, "\e[0m", ": #{state ? "On" : "Off"}", "\n\n")
-      else
-        if i == selected then
-          $stdout.print(option, "\e[0m", "\n\n")
-        else
-          $stdout.print(option, "\n\n")
-        end
+        $stdout.print(option, "\e[0m", ": #{state ? "On" : "Off"}", "\n\n", "\e[0m")
+      when "Quit"
+        $stdout.print(option, "\n\n", "\e[0m")
       end
     end
   end
@@ -137,7 +132,7 @@ class Render
   end
 
   def self.player_settings(options, selected, num)
-    line = num == "1" ? 2 : 4
+    line = num == "1" ? 3 : 5
     reset_colors = ["\e[37m", "\e[34m", "\e[32m", "\e[33m", "\e[31m"]
     background_colors = ["\e[47m", "\e[44m", "\e[42m", "\e[43m", "\e[41m"]
     cols = {}
@@ -190,32 +185,44 @@ class Render
     $stdin.getch
   end
 
-  def self.select_from(options, selected, game_state)
+  def self.board(game_state, valid_moves, selected_piece, selected_piece_index, selected_move, selected_move_index)
     system("clear")
     for y in 0...8 do
       for x in 0...8 do
-        piece_text, piece_color = get_piece_render(y, x, options, selected, game_state)
-        background_color = get_background_color(y, x, options, selected, game_state)
+        piece_text, piece_color = get_piece_render(y, x, game_state, valid_moves, selected_piece, selected_piece_index, selected_move, selected_move_index)
+        background_color = get_background_color(y, x, game_state, valid_moves, selected_piece, selected_piece_index, selected_move, selected_move_index)
         render_block(y, x, piece_text, piece_color, background_color)
       end
       print("\n\n")
     end
   end
 
-  def self.get_background_color(y, x, options, selected, game_state)
-    option_color = "\e[48;2;0;180;216m"
-    selected_color = "\e[48;2;0;119;182m"
+  def self.get_background_color(y, x, game_state, valid_moves, selected_piece, selected_piece_index, selected_move, selected_move_index)
+    piece_option_color = "\e[48;2;0;180;216m"
+    piece_selected_color = "\e[48;2;0;119;182m"
+    move_option_color = "\e[48;2;172;216;167m"
+    move_selected_color = "\e[48;2;70;146;60m"
+    white = "\e[47m"
+    black = "\e[40m"
     piece = game_state[:board].board[y][x]
-    if game_state[:board].selected == [y, x] then
-      return selected_color
-    elsif piece == options[selected] then
-      return option_color
-    else
-      (y+x)%2 == 0 ? "\e[47m" : "\e[40m"
+    if piece.nil? then
+      return (x+y)%2 == 0 ? white : black
     end
+    if selected_piece.nil? then
+      if valid_moves.keys[selected_piece_index] == piece then
+        return piece_option_color
+      end
+    else
+      if piece == selected_piece then
+        return piece_selected_color
+      elsif !valid_moves.empty? && valid_moves[selected_piece].include?([y, x]) then
+        return valid_moves[selected_piece][selected_move_index] == [y, x] ? move_selected_color : move_option_color
+      end
+    end
+    return (x+y)%2 == 0 ? white : black
   end
 
-  def self.get_piece_render(y, x, options, selected, game_state)
+  def self.get_piece_render(y, x, game_state, valid_moves, selected_piece, selected_piece_index, selected_move, selected_move_index)
     piece_id = {"P" => :pawn, "R" => :rook, "H" => :knight, "B" => :bishop, "Q" => :queen, "K" => :king}
     white_color = "\e[38;5;250m"
     black_color = "\e[38;5;240m"
@@ -225,21 +232,11 @@ class Render
     if !piece.nil? then
         piece_text = PIECES[piece_id[piece.id[0]]]
         piece_color = piece.id[2] == "W" ? white_color : black_color
-        if options.include?([y, x]) then
-          copy_color = option_color
-          copy_color[2] = '4'
-          piece_color += copy_color
-          if options[selected] == [y, x] then
-            copy_color = selected_color
-            copy_color[2] = '4'
-            piece_color += copy_color
-          end
-        end
     else
-      if options.include?([y, x]) then
+      if !selected_piece.nil? && !valid_moves.empty? && valid_moves[selected_piece].include?([y, x]) then
         piece_text = PIECES[:move]
         piece_color = option_color
-        if options[selected] == [y, x] then
+        if valid_moves[selected_piece][selected_move_index] == [y, x] then
           piece_color = selected_color
         end
       else
@@ -248,18 +245,6 @@ class Render
       end
     end
     return piece_text, piece_color
-  end
-
-  def self.make_play(game_state)
-    system("clear")
-    for y in 0...8 do
-      for x in 0...8 do
-        piece_text, piece_color = get_piece_render(y, x, [0], 0, game_state)
-        background_color = get_background_color(y, x, [0], 0, game_state)
-        render_block(y, x, piece_text, piece_color, background_color)
-      end
-      print("\n\n")
-    end
   end
 
   def self.render_block(y, x, piece_text, piece_color, background_color)

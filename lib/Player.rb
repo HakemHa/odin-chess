@@ -25,12 +25,8 @@ class Player
       return "prev"
     when "n"
       return "next"
-    when "exit"
-      return "e"
-    when "hard_exit"
-      return "fe"
     else
-      return coords
+      return nil
     end
   end
   
@@ -46,11 +42,12 @@ class Player
       "e" => "e", 
       "q" => "e",
       "\u0003" => "fe",
-      "p" => "prev",
-      "n" => "next",
-      "s" => "save",
-      "d" => "draw",
-      "f" => "forfeit",
+      "p" => "p",
+      "n" => "n",
+      "s" => "s",
+      "d" => "d",
+      "f" => "f",
+      "y" => "y",
     }
   end
   

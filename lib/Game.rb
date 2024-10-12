@@ -19,7 +19,7 @@ class Game
 
   def initialize(page = "start")
     @game_state = {}
-    @settings_state = {player1: PLAYERS[0], player2: PLAYERS[0], cheats: false}
+    @settings_state = {player1: PLAYERS[0], player2: PLAYERS[0], cheats: false, render: true}
     came_from = nil
     Render.open
     while page != "fe" do
@@ -54,17 +54,16 @@ class Game
     Render.close
   end
 
-  def self.get_settings_game_input(selected, settings_state)
-    options_length = settings_state.keys.length + 1
+  def self.get_settings_game_input(selected, options, settings_state)
     act = method(:settings_act)
     exit_codes = [".", "<"]
     input = nil
     while !exit_codes.include?(input)
-      Render.settings_game(selected, settings_state)
+      Render.settings_game(selected, options, settings_state)
       input = Player.handle_input(act)
       return input if exit_game?(input)
       if !exit_codes.include?(input) then
-        selected = (selected+input+options_length)%options_length
+        selected = (selected+input+options.length)%options.length
       end
     end
     return input, selected
@@ -75,7 +74,7 @@ class Game
     page = "self"
     selected = 0
     while page != "quit" do
-      input, selected = get_settings_game_input(selected, settings_state)
+      input, selected = get_settings_game_input(selected, options, settings_state)
       return input if exit_game?(input)
       if input == "<" || options[selected] == "quit" then
         break
@@ -204,17 +203,18 @@ class Game
     player_mode = game_state[:turn] == 0 ? settings_state[:player1] : settings_state[:player2]
     case player_mode
     when "Human"
-      move = get_move_human(game_state, settings_state)
-      return move if exit_game?(move)
+      piece, piece_move = get_move_human(game_state, settings_state)
+      return piece if exit_game?(piece)
     else
-      move = get_move_computer(player_mode, game_state)
-      return move if exit_game?(move)
+      piece, piece_move = get_move_computer(player_mode, game_state)
+      return piece if exit_game?(piece)
     end
-    previous_location = game_state[:board].get_location(move[0].id)
-    piece_move = move[1]
-    removed_piece = execute_move(*move, game_state)
-    Render.make_play(game_state)
-    sleep(0.2)
+    previous_location = game_state[:board].get_location(piece.id)
+    removed_piece = execute_move(piece, piece_move, game_state)
+    if settings_state[:render] then
+      Render.board(game_state, {}, piece, 0, nil, 0)
+      sleep(0.2)
+    end
     moment = [previous_location, piece_move, removed_piece]
     return moment
   end
@@ -224,40 +224,151 @@ class Game
   end
 
   def self.get_move_human(game_state, settings_state)
-    board = game_state[:board]
-    valid_moves = get_valid_moves(game_state)
     piece_index = 0
-    move = nil
-    while move.nil? do
-      board.selected = nil
-      pieces = valid_moves.keys
-      piece = select_from(pieces, piece_index, game_state)
-      return piece if exit_game?(piece)
-      board.selected = board.get_location(piece.id)
-      piece_index = pieces.find_index(piece)
-      piece_moves = valid_moves[piece]
-      piece_move = select_from(piece_moves, 0, game_state)
-      return piece_move if exit_game?(piece_move)
-      next if piece_move == "<"
-      move = [piece, piece_move]
+    piece_move_index = 0
+    piece = nil
+    piece_move = nil
+    if settings_state[:cheats] then
+      go_back = 0
     end
-    board.selected = nil
+    while piece_move.nil? do
+      valid_moves = get_valid_moves(game_state)
+      if settings_state[:render] then
+        Render.board(game_state, valid_moves, piece, piece_index, piece_move, piece_move_index)
+      end
+      input = Player.play
+      return input if exit_game?(input)
+      piece, piece_index, piece_move, piece_move_index = get_move_state(input, valid_moves, piece, piece_index, piece_move, piece_move_index)
+      if settings_state[:cheats] then
+        last_piece_moved, go_back = get_cheats_state(game_state, input, go_back, piece_move)
+        if !last_piece_moved.nil? then
+          piece_move_index = 0
+          piece = nil
+          piece_move = nil
+          valid_moves = get_valid_moves(game_state)
+          piece_index = valid_moves.keys.find_index(last_piece_moved) || 0
+        end
+      end
+    end
+    move = [piece, piece_move]
     return move
   end
 
-  def self.select_from(list, index, game_state)
-    input = nil
-    exit_code = "."
-    while input != exit_code
-      Render.select_from(list, index, game_state)
-      input = Player.play(index, list.length)
-      return input if exit_game?(input)
-      if input == "<" && list[index].instance_of?(Array) then
-        return input
+  def self.get_cheats_state(game_state, input, go_back, piece_move)
+    story = game_state[:story]
+    last_moved_piece = nil
+    case input
+    when "prev"
+      last_moved_piece = revert_game(game_state, go_back)
+      go_back = [go_back+1, story.length].min
+    when "next"
+      last_moved_piece = forward_game(game_state, go_back)
+      go_back = [go_back-1, 0].max
+    when "."
+      if !piece_move.nil? then
+        game_state[:story] = story[0...(story.length-go_back)]
       end
-      index = input if input.instance_of?(Integer)
     end
-    return list[index]
+    return last_moved_piece, go_back
+  end
+
+  def self.revert_game(game_state, go_back)
+    story = game_state[:story]
+    if go_back == story.length then
+      return nil
+    end
+    to_remove = story[story.length-go_back-1]
+    move1, move2, removed_piece = to_remove
+    piece_moved = game_state[:board][move2[0]][move2[1]]
+    game_state[:board][move1[0]][move1[1]] = piece_moved
+    game_state[:board][move2[0]][move2[1]] = nil
+    if !removed_piece.nil? then
+      case removed_piece
+      when /^en_passant/
+        move = piece_moved.id[2] == "W" ? +1 : -1
+        restore_piece(game_state, [move2[0]+move, move2[1]], removed_piece[10...13])
+      when /^castle/
+        direction = (move2[1]-move1[1])/2
+        rook = game_state[:board][move1[0]][move1[1]+direction]
+        game_state[:board][move1[0]][move1[1]+direction] = nil
+        if direction == 1 then
+          game_state[:board][move1[0]][7] = rook
+        else
+          game_state[:board][move1[0]][0] = rook
+        end
+      when /^to_queen/
+        piece_moved = Pawn.new("P" + (piece_moved.id[1].to_i-1).to_s + piece_moved.id[2])
+        game_state[:board][move1[0]][move1[1]] = piece_moved
+        restore_piece(game_state, move2, removed_piece[8...11]) if removed_piece.length > 8
+      else
+        restore_piece(game_state, move2, removed_piece)
+      end
+    end
+    game_state[:turn] = (game_state[:turn]+1)%2
+    return piece_moved
+  end
+
+  def self.restore_piece(game_state, location, piece_id)
+    piece = str_to_piece(piece_id)
+    game_state[:board][location[0]][location[1]] = piece
+  end
+
+  def self.forward_game(game_state, go_back)
+    story = game_state[:story]
+    if go_back == 0 then
+      return nil
+    end
+    to_add = story[story.length-go_back]
+    move1, move2, _ = to_add
+    piece_moved = game_state[:board][move1[0]][move1[1]]
+    execute_move(piece_moved, move2, game_state)
+    game_state[:turn] = (game_state[:turn]+1)%2
+    return nil
+  end
+
+  def self.get_move_state(input, valid_moves, piece, piece_index, piece_move, piece_move_index)
+    case input
+    when "up"
+      piece, piece_index, piece_move, piece_move_index = move_state_up(valid_moves, piece, piece_index, piece_move, piece_move_index)
+    when "down"
+      piece, piece_index, piece_move, piece_move_index = move_state_down(valid_moves, piece, piece_index, piece_move, piece_move_index)
+    when "right"
+      piece, piece_index, piece_move, piece_move_index = move_state_up(valid_moves, piece, piece_index, piece_move, piece_move_index)
+    when "left"
+      piece, piece_index, piece_move, piece_move_index = move_state_down(valid_moves, piece, piece_index, piece_move, piece_move_index)
+    when "."
+      if piece.nil? then
+        piece = valid_moves.keys[piece_index]
+      else
+        piece_move = valid_moves[piece][piece_move_index]
+      end
+    when "<"
+      if !piece.nil? then
+        piece_move_index = 0
+        piece = nil
+      end
+    end
+    return piece, piece_index, piece_move, piece_move_index
+  end
+
+  def self.move_state_up(valid_moves, piece, piece_index, piece_move, piece_move_index)
+    if piece.nil? then
+      piece_index = (piece_index+1)%valid_moves.keys.length
+    else
+      piece_move_index = (piece_move_index+1)%valid_moves[piece].length
+    end
+    return piece, piece_index, piece_move, piece_move_index
+  end
+
+  def self.move_state_down(valid_moves, piece, piece_index, piece_move, piece_move_index)
+    if piece.nil? then
+      limit = valid_moves.keys.length
+      piece_index = (piece_index-1+limit)%limit
+    else
+      limit = valid_moves[piece].length
+      piece_move_index = (piece_move_index-1+limit)%limit
+    end
+    return piece, piece_index, piece_move, piece_move_index
   end
 
   def self.execute_move(piece, move, game_state)
@@ -295,7 +406,7 @@ class Game
       removed_piece = board.board[move[0]-1][move[1]]
       board.remove(move[0]-1, move[1])
     end
-    return "en_passant#{removed_piece.nil? ? nil : removed_piece.id}"
+    return "en_passant#{removed_piece.id}"
   end
 
   def self.do_castle(piece, move, game_state)
@@ -439,7 +550,6 @@ class Game
   def self.stalemate?(game_state)
     no_more_moves = get_valid_moves(game_state) == {}
     checkmate = checkmate?(game_state)
-    puts("OK? #{[no_more_moves, checkmate, get_valid_moves(game_state)]}")
     return no_more_moves && !checkmate
   end
 
@@ -468,35 +578,37 @@ class Game
     options = ["yes", "no"]
     selected = 0
     act = method(:exit_act)
-    exit_codes = [".", "e", "fe"]
-    input = nil
-    while !exit_codes.include?(input)
+    choice = nil
+    while choice.nil?
       Render.exit_game(options, selected)
       input = Player.handle_input(act)
-      return input if exit_game?(input)
-      if !exit_codes.include?(input) then
-        selected = input || 0
+      return "hard_exit" if exit_game?(input)
+      if input.instance_of?(Integer) then
+        selected = (selected+input+options.length)%options.length
+      elsif input == "." then
+        choice = options[selected]
+      else
+        choice = input
       end
     end
-    return page if options[selected] == "no"
+    return page if choice == "no"
     return "hard_exit"
   end
 
-  def self.exit_act(input, state)
-    selected, options_length = state[0], state[1].length
+  def self.exit_act(input)
     case input
-    when "+1"
-      selected = (selected+1)%options_length
-    when "-1"
-      selected = (selected-1+options_length)%options_length
+    when "left"
+      -1
+    when "right"
+      +1
     when "submit"
       "."
     when "reset"
-      nil
-    when "exit"
-      nil
-    when "hard_exit"
-      return "fe"
+      "no"
+    when "n"
+      "no"
+    when "y"
+      "yes"
     else
       return nil
     end
