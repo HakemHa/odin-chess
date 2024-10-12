@@ -239,7 +239,7 @@ class Game
     end
     board.selected = nil
     return move
-  end
+  end 
 
   def self.select_from(list, index, game_state)
     input = nil
@@ -251,7 +251,7 @@ class Game
       if input == "<" && list[index].instance_of?(Array) then
         return input
       end
-      index = input if input != exit_code && input != '<'
+      index = input if input.instance_of?(Integer)
     end
     return list[index]
   end
@@ -360,23 +360,7 @@ class Game
   end
 
   def self.is_valid_move?(move, game_state)
-    board = game_state[:board]
-    turn = game_state[:turn]
-    story = game_state[:story]
-    copy_board = Grid.new
-    copy_board.board = Array.new(8) { Array.new(8) }
-    for y in 0...8 do
-      for x in 0...8 do
-        piece = board.board[y][x]
-        if !piece.nil? then
-          copy_board.board[y][x] = str_to_piece(piece.id)
-        else
-          nil
-        end
-      end
-    end
-    copy_story = JSON.parse(JSON.generate(story))
-    copy_game_state = {board: copy_board, turn: turn, story: copy_story}
+    copy_game_state = Game.copy_game(game_state)
     execute_move(*move, copy_game_state)
     return !in_check?(copy_game_state)
   end
@@ -551,6 +535,27 @@ class Game
     else
       return nil
     end
+  end
+
+  def self.copy_game(game_state)
+    board = game_state[:board]
+    turn = game_state[:turn]
+    story = game_state[:story]
+    copy_board = Grid.new
+    copy_board.board = Array.new(8) { Array.new(8) }
+    for y in 0...8 do
+      for x in 0...8 do
+        piece = board.board[y][x]
+        if !piece.nil? then
+          copy_board.board[y][x] = str_to_piece(piece.id)
+        else
+          nil
+        end
+      end
+    end
+    copy_story = JSON.parse(JSON.generate(story))
+    copy_game_state = {board: copy_board, turn: turn, story: copy_story}
+    return copy_game_state
   end
 
   def self.pretty_print(game_state)
