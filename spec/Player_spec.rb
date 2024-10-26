@@ -1,176 +1,110 @@
-require_relative "./Grid_Pieces_spec"
+Dir[File.join(__dir__, '../lib/pieces', "*")].each { |file| require file }
+require_relative "../lib/Grid"
 require_relative "../lib/Player"
 
 describe "Player" do
-  describe "#play" do
-    bogey_input = "k"
-    context "when coords length is 1" do
-      it "changes piece when input is left arrow" do
-        moves_length = 3
-        curr_index = 0
-        inputs = [bogey_input, "\e[D"]
-        input_index = -1
-        allow(STDIN).to receive(:getch).and_wrap_original do |original_method|
-          sleep(0.05)
-          input_index += 1
-          if input_index < inputs.length then
-            inputs[input_index]
-          end
-        end
-        result = Player.play(curr_index, moves_length)
-        expected = (curr_index-1+moves_length)%moves_length
-        expect(result).to eq(expected)
+  describe "#handle_input" do
+    def act(input)
+      case input
+      when "submit"
+        return "."
+      when "up"
+        return +1
+      else
+        nil
       end
-
-      it "changes piece when input is up arrow" do
-        moves_length = 3
-        curr_index = 2
-        inputs = [bogey_input, "\e[A"]
-        input_index = -1
-        allow(STDIN).to receive(:getch).and_wrap_original do |original_method|
-          sleep(0.05)
-          input_index += 1
-          if input_index < inputs.length then
-            inputs[input_index]
-          end
+    end
+    context "when receiving invalid input" do
+      it "waits for valid input" do
+        inputs = [" ", "k"]
+        allow(STDIN).to receive(:getch).and_wrap_original do |original, *args|
+          sleep(0.1)
+          next inputs.pop
         end
-        result = Player.play(curr_index, moves_length)
-        expected = (curr_index+1)%moves_length
-        expect(result).to eq(expected)
-      end
-
-      it "changes piece when input is right arrow" do
-        moves_length = 3
-        curr_index = 1
-        inputs = [bogey_input, "\e[C"]
-        input_index = -1
-        allow(STDIN).to receive(:getch).and_wrap_original do |original_method|
-          sleep(0.05)
-          input_index += 1
-          if input_index < inputs.length then
-            inputs[input_index]
-          end
-        end
-        result = Player.play(curr_index, moves_length)
-        expected = (curr_index+1)%moves_length
-        expect(result).to eq(expected)
-      end
-
-      it "changes piece when input is down arrow" do
-        moves_length = 3
-        curr_index = 2
-        inputs = [bogey_input, "\e[B"]
-        input_index = -1
-        allow(STDIN).to receive(:getch).and_wrap_original do |original_method|
-          sleep(0.05)
-          input_index += 1
-          if input_index < inputs.length then
-            inputs[input_index]
-          end
-        end
-        result = Player.play(curr_index, moves_length)
-        expected = (curr_index-1+moves_length)%moves_length
-        expect(result).to eq(expected)
-      end
-
-      it "submits when input is space bar" do
-        moves_length = 3
-        curr_index = 0
-        inputs = [bogey_input, " "]
-        input_index = -1
-        allow(STDIN).to receive(:getch).and_wrap_original do |original_method|
-          sleep(0.05)
-          input_index += 1
-          if input_index < inputs.length then
-            inputs[input_index]
-          end
-        end
-        result = Player.play(curr_index, moves_length)
+        result = Player.handle_input(method(:act))
         expected = "."
         expect(result).to eq(expected)
       end
 
-      it "submits when input is enter key" do
-        moves_length = 3
-        curr_index = 0
-        inputs = [bogey_input, "\r"]
-        input_index = -1
-        allow(STDIN).to receive(:getch).and_wrap_original do |original_method|
-          sleep(0.05)
-          input_index += 1
-          if input_index < inputs.length then
-            inputs[input_index]
-          end
+      it "waits for valid input (long input)" do
+        inputs = ["\e[A", "kkk"]
+        allow(STDIN).to receive(:getch).and_wrap_original do |original, *args|
+          sleep(0.1)
+          next inputs.pop
         end
-        result = Player.play(curr_index, moves_length)
+        result = Player.handle_input(method(:act))
+        expected = +1
+        expect(result).to eq(expected)
+      end
+    end
+
+    context "when receiving not acted on input" do
+      it "waits for valid input" do
+        inputs = [" ", "\r"]
+        allow(STDIN).to receive(:getch).and_wrap_original do |original, *args|
+          sleep(0.1)
+          next inputs.pop
+        end
+        result = Player.handle_input(method(:act))
         expected = "."
         expect(result).to eq(expected)
       end
 
-      it "does nothing when input is backspace" do
-        moves_length = 3
-        curr_index = 0
-        inputs = [bogey_input, "\u007f"]
-        input_index = -1
-        allow(STDIN).to receive(:getch).and_wrap_original do |original_method|
-          sleep(0.05)
-          input_index += 1
-          if input_index < inputs.length then
-            inputs[input_index]
-          end
+      it "waits for valid input (long input)" do
+        inputs = ["\e[A", "\e[B"]
+        allow(STDIN).to receive(:getch).and_wrap_original do |original, *args|
+          sleep(0.1)
+          next inputs.pop
         end
-        result = Player.play(curr_index, moves_length)
-        expected = "<"
+        result = Player.handle_input(method(:act))
+        expected = +1
+        expect(result).to eq(expected)
+      end
+    end
+
+    context "when receiving acted on input" do
+      it "returns valid input" do
+        inputs = [" "]
+        allow(STDIN).to receive(:getch).and_wrap_original do |original, *args|
+          sleep(0.1)
+          next inputs.pop
+        end
+        result = Player.handle_input(method(:act))
+        expected = "."
         expect(result).to eq(expected)
       end
 
-      it "exits when input is e" do
-        moves_length = 3
-        curr_index = 0
-        inputs = [bogey_input, "e"]
-        input_index = -1
-        allow(STDIN).to receive(:getch).and_wrap_original do |original_method|
-          sleep(0.05)
-          input_index += 1
-          if input_index < inputs.length then
-            inputs[input_index]
-          end
+      it "returns valid input (long input)" do
+        inputs = ["\e[A"]
+        allow(STDIN).to receive(:getch).and_wrap_original do |original, *args|
+          sleep(0.1)
+          next inputs.pop
         end
-        result = Player.play(curr_index, moves_length)
+        result = Player.handle_input(method(:act))
+        expected = +1
+        expect(result).to eq(expected)
+      end
+    end
+
+    context "when trying to exit" do
+      it "exits at e" do
+        inputs = [" ", "e"]
+        allow(STDIN).to receive(:getch).and_wrap_original do |original, *args|
+          sleep(0.1)
+          next inputs.pop
+        end
+        result = Player.handle_input(method(:act))
         expected = "e"
         expect(result).to eq(expected)
       end
 
-      it "exits when input is q key" do
-        moves_length = 3
-        curr_index = 0
-        inputs = [bogey_input, "q"]
-        input_index = -1
-        allow(STDIN).to receive(:getch).and_wrap_original do |original_method|
-          sleep(0.05)
-          input_index += 1
-          if input_index < inputs.length then
-            inputs[input_index]
-          end
+      it "exits at fe" do
+        inputs = [" ", "\u0003"]
+        allow(STDIN).to receive(:getch).and_wrap_original do |original, *args|
+          sleep(0.1)
+          next inputs.pop
         end
-        result = Player.play(curr_index, moves_length)
-        expected = "e"
-        expect(result).to eq(expected)
-      end
-
-      it "hard exits when input is Ctrl+C" do
-        moves_length = 3
-        curr_index = 0
-        inputs = [bogey_input, "\u0003"]
-        input_index = -1
-        allow(STDIN).to receive(:getch).and_wrap_original do |original_method|
-          sleep(0.05)
-          input_index += 1
-          if input_index < inputs.length then
-            inputs[input_index]
-          end
-        end
-        result = Player.play(curr_index, moves_length)
+        result = Player.handle_input(method(:act))
         expected = "fe"
         expect(result).to eq(expected)
       end

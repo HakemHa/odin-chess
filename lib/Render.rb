@@ -64,12 +64,24 @@ class Render
     EMPTY
   }
 
+  Mini_HEIGHT = 8
+  Mini_WIDTH = 16
+  Mini_PIECES = {
+    king: '♚ ',
+    queen: '♛ ',
+    rook: '♜ ',
+    knight: '♞ ',
+    bishop: '♝ ',
+    pawn: '♟ ',
+    move: '██',
+    empty: "  ",
+  }
   def self.start_game(options, selected)
     system("clear")
     space = " "*10
     title = "♔  CHESS ♚"
     banner = space+title+space
-    $stdout.print(banner, "\n")
+    $stdout.print(banner, "\n\n")
     for i in 0...options.length do
       option = options[i]
       if i == selected then
@@ -263,6 +275,97 @@ class Render
       buffer += default_background + default_color
     end
     print(buffer)
+  end
+
+  def self.mini_board(game_state, valid_moves, selected_piece, selected_piece_index, selected_move, selected_move_index, position = [0, 0])
+    buffer = ""
+    buffer += "\e[#{position[0]+1};#{position[1]}f"
+    for y in 0...8 do
+      for x in 0...8 do
+        piece_text, piece_color = mini_get_piece_render(y, x, game_state, valid_moves, selected_piece, selected_piece_index, selected_move, selected_move_index)
+        background_color = mini_get_background_color(y, x, game_state, valid_moves, selected_piece, selected_piece_index, selected_move, selected_move_index)
+        buffer += mini_render_block(piece_text, piece_color, background_color)
+      end
+      buffer += "\e[#{position[0]+y+2};#{position[1]}f"
+    end
+    print(buffer)
+  end
+
+  def self.mini_get_background_color(y, x, game_state, valid_moves, selected_piece, selected_piece_index, selected_move, selected_move_index)
+    piece_option_color = "\e[48;2;0;180;216m"
+    piece_selected_color = "\e[48;2;0;119;182m"
+    move_option_color = "\e[48;2;172;216;167m"
+    move_selected_color = "\e[48;2;70;146;60m"
+    white = "\e[47m"
+    black = "\e[40m"
+    piece = game_state[:board].board[y][x]
+    if piece.nil? then
+      return (x+y)%2 == 0 ? white : black
+    end
+    if selected_piece.nil? then
+      if valid_moves.keys[selected_piece_index] == piece then
+        return piece_option_color
+      end
+    else
+      if piece == selected_piece then
+        return piece_selected_color
+      elsif !valid_moves.empty? && valid_moves[selected_piece].include?([y, x]) then
+        return valid_moves[selected_piece][selected_move_index] == [y, x] ? move_selected_color : move_option_color
+      end
+    end
+    return (x+y)%2 == 0 ? white : black
+  end
+
+  def self.mini_get_piece_render(y, x, game_state, valid_moves, selected_piece, selected_piece_index, selected_move, selected_move_index)
+    piece_id = {"P" => :pawn, "R" => :rook, "H" => :knight, "B" => :bishop, "Q" => :queen, "K" => :king}
+    white_color = "\e[37m"
+    black_color = "\e[30m"
+    option_color = "\e[38;2;172;216;167m"
+    selected_color = "\e[38;2;70;146;60m"
+    piece = game_state[:board].board[y][x]
+    if !piece.nil? then
+        piece_text = Mini_PIECES[piece_id[piece.id[0]]]
+        piece_color = piece.id[2] == "W" ? white_color : black_color
+    else
+      if !selected_piece.nil? && !valid_moves.empty? && valid_moves[selected_piece].include?([y, x]) then
+        piece_text = Mini_PIECES[:move]
+        piece_color = option_color
+        if valid_moves[selected_piece][selected_move_index] == [y, x] then
+          piece_color = selected_color
+        end
+      else
+        piece_text = Mini_PIECES[:empty]
+        piece_color = "\e[39m"
+      end
+    end
+    return piece_text, piece_color
+  end
+
+  def self.mini_render_block(piece_text, piece_color, background_color)
+    buffer = ""
+    block_height = Mini_HEIGHT/8
+    block_width = Mini_WIDTH/8
+    default_background = "\e[49m"
+    default_color = "\e[39m"
+    for line in 1..block_height do
+      #buffer += "\e[#{line};#{(x*block_width)+1}H"
+      buffer += background_color+piece_color
+      origin = (line-1)*(block_width+1)
+      for i in 0...block_width do
+        buffer += piece_text[origin+i]
+      end
+      buffer += default_background + default_color
+    end
+    return buffer
+  end
+
+  def self.save_game(game_state, settings_state, title)
+    system("clear")
+    print("Saving...", "\n\n")
+    print("Save as: #{title}", "\n\n\n")
+    print("(Press enter or space to confirm and backspace\non an empty filename to cancel)", "\n\n")
+    mini_board(game_state, {}, nil, 0, nil, 0, [0, 50])
+    print("     Turn: #{game_state[:turn] == 0 ? "W" : "B"}")
   end
 
   def self.end_game(winner)

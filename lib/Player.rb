@@ -25,6 +25,8 @@ class Player
       return "prev"
     when "n"
       return "next"
+    when "s"
+      return "save"
     else
       return nil
     end
@@ -39,15 +41,7 @@ class Player
       " " => "submit", 
       "\r" => "submit", 
       "\u007F" => "reset", 
-      "e" => "e", 
-      "q" => "e",
       "\u0003" => "fe",
-      "p" => "p",
-      "n" => "n",
-      "s" => "s",
-      "d" => "d",
-      "f" => "f",
-      "y" => "y",
     }
   end
   
@@ -79,10 +73,13 @@ class Player
     if is_valid_key then
       return key_to_command[input]
     end
+    if (input.ord >= 'a'.ord && input.ord <= 'z'.ord) || (input.ord >= 'A'.ord && input.ord <= 'Z'.ord) then
+      return input
+    end
     return nil
   end
 
   def self.exit_codes
-    ["e", "fe"]
+    ["e", "fe", "q"]
   end
 end

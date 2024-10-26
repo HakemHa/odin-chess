@@ -50,7 +50,7 @@ describe "Grid" do
         move_grid = Grid.new
         pawn = Pawn.new("P1W")
         move_grid.place(7, 1, pawn)
-        move_grid.place(6, 0, Pawn.new("P2B"))
+        move_grid.place(6, 0, Knight.new("H1B"))
         move_grid.place(6, 2, Pawn.new("P2B"))
         state = {board: move_grid, story: []}
         result = pawn.moves(state)

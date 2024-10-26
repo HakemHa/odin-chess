@@ -88,38 +88,6 @@ describe Game do
     h1: [7, 7]
   }
 
-  context "#select_from" do
-    it "selects from list when selecting piece" do
-      list = [Pawn.new("P1W"), Rook.new("R1W"), King.new("K1W")]
-      index = 0
-      allow(Player).to receive(:play).and_return(index+1, index, ".")
-      allow(Render). to receive(:select_from).and_return(nil)
-      result = Game.select_from(list, index, {})
-      expected = Pawn.new("P1W")
-      expect(result.id).to eq(expected.id)
-    end
-
-    it "does nothing when < and selecting piece" do
-      list = [Pawn.new("P1W"), Rook.new("R1W"), King.new("K1W")]
-      index = 0
-      allow(Player).to receive(:play).and_return(index+1, index, "<", ".")
-      allow(Render). to receive(:select_from).and_return(nil)
-      result = Game.select_from(list, index, {})
-      expected = Pawn.new("P1W")
-      expect(result.id).to eq(expected.id)
-    end
-
-    it "selects from list when selecting move" do
-      list = [[0, 0], [1, 0], [2, 0]]
-      index = 0
-      allow(Player).to receive(:play).and_return(index+1, index, ".")
-      allow(Render). to receive(:select_from).and_return(nil)
-      result = Game.select_from(list, index, {})
-      expected = list[index]
-      expect(result).to eq(expected)
-    end
-  end
-
   context "when getting draw" do
     it "draws at 50 times" do
       game_state = {}
@@ -207,7 +175,6 @@ describe Game do
 
   context "when trying to castle" do
     it "moves king and rook" do
-      game = Game.new("fe")
       plays = [
         [M[:e2], M[:e4]],
         [M[:b8], M[:a6]],
@@ -221,20 +188,22 @@ describe Game do
         EXIT
       ]
       play_index = 0
-      allow(Game).to receive(:make_play).and_wrap_original do |original, *args|
+      allow(Game).to receive(:get_move_human).and_wrap_original do |original, *args|
         if plays[play_index].length == 2 then
           piece_location, move = plays[play_index]
           board = args[0][:board]
           piece = board.board[piece_location[0]][piece_location[1]]
-          allow(Game).to receive(:select_from).and_return(piece, move)
           play_index += 1
+          to_return = [piece, move]
         else
-          allow(Game).to receive(:select_from).and_return(plays[play_index])
+          to_return = "e"
         end
-        original.call(*args)
+        next to_return
       end
+      game = Game.new("fe")
       game_state = game.instance_variable_get(:@game_state)
       settings_state = game.instance_variable_get(:@settings_state)
+      settings_state[:render] = false
       Game.play_game(game_state, settings_state)
       board = game_state[:board]
       result = [board.get_location("K1W"), board.get_location("R2W")]
@@ -255,20 +224,21 @@ describe Game do
         EXIT
       ]
       play_index = 0
-      allow(Game).to receive(:make_play).and_wrap_original do |original, *args|
+      allow(Game).to receive(:get_move_human).and_wrap_original do |original, *args|
         if plays[play_index].length == 2 then
           piece_location, move = plays[play_index]
           board = args[0][:board]
           piece = board.board[piece_location[0]][piece_location[1]]
-          allow(Game).to receive(:select_from).and_return(piece, move)
           play_index += 1
+          to_return = [piece, move]
         else
-          allow(Game).to receive(:select_from).and_return(plays[play_index])
+          to_return = "e"
         end
-        original.call(*args)
+        next to_return
       end
       game_state = game.instance_variable_get(:@game_state)
       settings_state = game.instance_variable_get(:@settings_state)
+      settings_state[:render] = false
       Game.play_game(game_state, settings_state)
       board = game_state[:board]
       ate = M[:d5]
@@ -294,77 +264,25 @@ describe Game do
         EXIT
       ]
       play_index = 0
-      allow(Game).to receive(:make_play).and_wrap_original do |original, *args|
+      allow(Game).to receive(:get_move_human).and_wrap_original do |original, *args|
         if plays[play_index].length == 2 then
           piece_location, move = plays[play_index]
           board = args[0][:board]
           piece = board.board[piece_location[0]][piece_location[1]]
-          allow(Game).to receive(:select_from).and_return(piece, move)
           play_index += 1
+          to_return = [piece, move]
         else
-          allow(Game).to receive(:select_from).and_return(plays[play_index])
+          to_return = "e"
         end
-        original.call(*args)
+        next to_return
       end
       game_state = game.instance_variable_get(:@game_state)
       settings_state = game.instance_variable_get(:@settings_state)
+      settings_state[:render] = false
       Game.play_game(game_state, settings_state)
       board = game_state[:board]
       result = board.board[0][6].id[0..1]
       expected = "Q9"
-      expect(result).to eq(expected)
-    end
-  end
-
-  context "when resetting move" do
-    it "resets to selected piece if piece was selected" do
-      game = Game.new("fe")
-      plays = [
-        [M[:e2], M[:e4]],
-        [M[:b8], M[:a6]],
-        [M[:d2], M[:d4]],
-        [M[:a6], M[:b8]],
-        [M[:f1], "<", M[:c1], M[:f4]],
-        [M[:b8], M[:a6]],
-        [M[:b1], M[:c3]],
-        [M[:a6], M[:b8]],
-        [M[:d1], M[:e2]],
-        EXIT
-      ]
-      play_index = 0
-      allow(Game).to receive(:make_play).and_wrap_original do |original, *args|
-        if plays[play_index].length == 2 then
-          piece_location, move = plays[play_index]
-          board = args[0][:board]
-          piece = board.board[piece_location[0]][piece_location[1]]
-          allow(Game).to receive(:select_from).and_return(piece, move)
-          play_index += 1
-        elsif plays[play_index].length == 4 then
-          piece1_location, go_back, piece2_location, move = plays[play_index]
-          board = args[0][:board]
-          piece1 = board.board[piece1_location[0]][piece1_location[1]]
-          piece2 = board.board[piece2_location[0]][piece2_location[1]]
-          allow(Game).to receive(:select_from).and_return(piece1, go_back, piece2, move)
-          play_index += 1
-        else
-          allow(Game).to receive(:select_from).and_return(plays[play_index])
-        end
-        original.call(*args)
-      end
-      game_state = game.instance_variable_get(:@game_state)
-      settings_state = game.instance_variable_get(:@settings_state)
-      Game.play_game(game_state, settings_state)
-      result = game_state[:board].board.map { |row| row.map { |piece| piece.nil? ? nil : piece.id }}
-      expected = [
-        ["R1B", "H1B", "B1B", "Q1B", "K1B", "B2B", "H2B", "R2B"],
-        ["P1B", "P2B", "P3B", "P4B", "P5B", "P6B", "P7B", "P8B"],
-        [nil, nil, nil, nil, nil, nil, nil, nil],
-        [nil, nil, nil, nil, nil, nil, nil, nil],
-        [nil, nil, nil, "P4W", "P5W", "B1W", nil, nil],
-        [nil, nil, "H1W", nil, nil, nil, nil, nil],
-        ["P1W", "P2W", "P3W", nil, "Q1W", "P6W", "P7W", "P8W"],
-        ["R1W", nil, nil, nil, "K1W", "B2W", "H2W", "R2W"]
-      ]
       expect(result).to eq(expected)
     end
   end
@@ -388,21 +306,21 @@ describe Game do
         EXIT
       ]
       play_index = 0
-      allow(Game).to receive(:make_play).and_wrap_original do |original, *args|
+      allow(Game).to receive(:get_move_human).and_wrap_original do |original, *args|
         if plays[play_index].length == 2 then
           piece_id, move = plays[play_index]
-          board = args[0][:board]
-          piece_location = board.get_location(piece_id)
-          piece = board.board[piece_location[0]][piece_location[1]]
-          allow(Game).to receive(:select_from).and_return(piece, move)
+          piece = nil
+          args[0][:board].board.find { |r| r.find { |p| piece = p if !p.nil? && p.id == piece_id } }
           play_index += 1
+          to_return = [piece, move]
         else
-          allow(Game).to receive(:select_from).and_return(plays[play_index])
+          to_return = "e"
         end
-        original.call(*args)
+        next to_return
       end
       game_state = game.instance_variable_get(:@game_state)
       settings_state = game.instance_variable_get(:@settings_state)
+      settings_state[:render] = false
       Game.play_game(game_state, settings_state)
       result = (Game.get_valid_moves(game_state).to_a.map { |k, v| [k.id, v.to_set] }).to_set
       expected = [["K1W", [M[:d1], M[:f1]].to_set]].to_set
@@ -423,21 +341,21 @@ describe Game do
         EXIT
       ]
       play_index = 0
-      allow(Game).to receive(:make_play).and_wrap_original do |original, *args|
+      allow(Game).to receive(:get_move_human).and_wrap_original do |original, *args|
         if plays[play_index].length == 2 then
           piece_id, move = plays[play_index]
-          board = args[0][:board]
-          piece_location = board.get_location(piece_id)
-          piece = board.board[piece_location[0]][piece_location[1]]
-          allow(Game).to receive(:select_from).and_return(piece, move)
+          piece = nil
+          args[0][:board].board.find { |r| r.find { |p| piece = p if !p.nil? && p.id == piece_id } }
           play_index += 1
+          to_return = [piece, move]
         else
-          allow(Game).to receive(:select_from).and_return(plays[play_index])
+          to_return = "e"
         end
-        original.call(*args)
+        next to_return
       end
       game_state = game.instance_variable_get(:@game_state)
       settings_state = game.instance_variable_get(:@settings_state)
+      settings_state[:render] = false
       Game.play_game(game_state, settings_state)
       result = (Game.get_valid_moves(game_state).to_a.map { |k, v| [k.id, v.to_set] }).to_set
       expected = [["K1W", [M[:f2]].to_set]].to_set
@@ -463,21 +381,21 @@ describe Game do
         EXIT
       ]
       play_index = 0
-      allow(Game).to receive(:make_play).and_wrap_original do |original, *args|
+      allow(Game).to receive(:get_move_human).and_wrap_original do |original, *args|
         if plays[play_index].length == 2 then
           piece_id, move = plays[play_index]
-          board = args[0][:board]
-          piece_location = board.get_location(piece_id)
-          piece = board.board[piece_location[0]][piece_location[1]]
-          allow(Game).to receive(:select_from).and_return(piece, move)
+          piece = nil
+          args[0][:board].board.find { |r| r.find { |p| piece = p if !p.nil? && p.id == piece_id } }
           play_index += 1
+          to_return = [piece, move]
         else
-          allow(Game).to receive(:select_from).and_return(plays[play_index])
+          to_return = "e"
         end
-        original.call(*args)
+        next to_return
       end
       game_state = game.instance_variable_get(:@game_state)
       settings_state = game.instance_variable_get(:@settings_state)
+      settings_state[:render] = false
       Game.play_game(game_state, settings_state)
       result = (Game.get_valid_moves(game_state).to_a.map { |k, v| [k.id, v.to_set] }).to_set
       expected = [["P5B", [M[:d6]].to_set]].to_set
@@ -500,21 +418,21 @@ describe Game do
         EXIT
       ]
       play_index = 0
-      allow(Game).to receive(:make_play).and_wrap_original do |original, *args|
+      allow(Game).to receive(:get_move_human).and_wrap_original do |original, *args|
         if plays[play_index].length == 2 then
           piece_id, move = plays[play_index]
-          board = args[0][:board]
-          piece_location = board.get_location(piece_id)
-          piece = board.board[piece_location[0]][piece_location[1]]
-          allow(Game).to receive(:select_from).and_return(piece, move)
+          piece = nil
+          args[0][:board].board.find { |r| r.find { |p| piece = p if !p.nil? && p.id == piece_id } }
           play_index += 1
+          to_return = [piece, move]
         else
-          allow(Game).to receive(:select_from).and_return(plays[play_index])
+          to_return = "e"
         end
-        original.call(*args)
+        next to_return
       end
       game_state = game.instance_variable_get(:@game_state)
       settings_state = game.instance_variable_get(:@settings_state)
+      settings_state[:render] = false
       Game.play_game(game_state, settings_state)
       result = (Game.get_valid_moves(game_state).to_a.map { |k, v| [k.id, v.to_set] }).to_set
       expected = [["Q1W", [M[:e2]].to_set], ["B2W", [M[:e2]].to_set], ["H2W", [M[:e2]].to_set]].to_set
@@ -533,21 +451,21 @@ describe Game do
         EXIT
       ]
       play_index = 0
-      allow(Game).to receive(:make_play).and_wrap_original do |original, *args|
+      allow(Game).to receive(:get_move_human).and_wrap_original do |original, *args|
         if plays[play_index].length == 2 then
           piece_id, move = plays[play_index]
-          board = args[0][:board]
-          piece_location = board.get_location(piece_id)
-          piece = board.board[piece_location[0]][piece_location[1]]
-          allow(Game).to receive(:select_from).and_return(piece, move)
+          piece = nil
+          args[0][:board].board.find { |r| r.find { |p| piece = p if !p.nil? && p.id == piece_id } }
           play_index += 1
+          to_return = [piece, move]
         else
-          allow(Game).to receive(:select_from).and_return(plays[play_index])
+          to_return = "e"
         end
-        original.call(*args)
+        next to_return
       end
       game_state = game.instance_variable_get(:@game_state)
       settings_state = game.instance_variable_get(:@settings_state)
+      settings_state[:render] = false
       result = Game.play_game(game_state, settings_state)
       expected = "end"
       expect(result).to eq(expected)
@@ -563,21 +481,21 @@ describe Game do
         EXIT
       ]
       play_index = 0
-      allow(Game).to receive(:make_play).and_wrap_original do |original, *args|
+      allow(Game).to receive(:get_move_human).and_wrap_original do |original, *args|
         if plays[play_index].length == 2 then
           piece_id, move = plays[play_index]
-          board = args[0][:board]
-          piece_location = board.get_location(piece_id)
-          piece = board.board[piece_location[0]][piece_location[1]]
-          allow(Game).to receive(:select_from).and_return(piece, move)
+          piece = nil
+          args[0][:board].board.find { |r| r.find { |p| piece = p if !p.nil? && p.id == piece_id } }
           play_index += 1
+          to_return = [piece, move]
         else
-          allow(Game).to receive(:select_from).and_return(plays[play_index])
+          to_return = "e"
         end
-        original.call(*args)
+        next to_return
       end
       game_state = game.instance_variable_get(:@game_state)
       settings_state = game.instance_variable_get(:@settings_state)
+      settings_state[:render] = false
       result = Game.play_game(game_state, settings_state)
       expected = "end"
       expect(result).to eq(expected)
@@ -596,21 +514,21 @@ describe Game do
         EXIT
       ]
       play_index = 0
-      allow(Game).to receive(:make_play).and_wrap_original do |original, *args|
+      allow(Game).to receive(:get_move_human).and_wrap_original do |original, *args|
         if plays[play_index].length == 2 then
           piece_id, move = plays[play_index]
-          board = args[0][:board]
-          piece_location = board.get_location(piece_id)
-          piece = board.board[piece_location[0]][piece_location[1]]
-          allow(Game).to receive(:select_from).and_return(piece, move)
+          piece = nil
+          args[0][:board].board.find { |r| r.find { |p| piece = p if !p.nil? && p.id == piece_id } }
           play_index += 1
+          to_return = [piece, move]
         else
-          allow(Game).to receive(:select_from).and_return(plays[play_index])
+          to_return = "e"
         end
-        original.call(*args)
+        next to_return
       end
       game_state = game.instance_variable_get(:@game_state)
       settings_state = game.instance_variable_get(:@settings_state)
+      settings_state[:render] = false
       result = Game.play_game(game_state, settings_state)
       expected = "end"
       expect(result).to eq(expected)
@@ -631,21 +549,21 @@ describe Game do
         EXIT
       ]
       play_index = 0
-      allow(Game).to receive(:make_play).and_wrap_original do |original, *args|
+      allow(Game).to receive(:get_move_human).and_wrap_original do |original, *args|
         if plays[play_index].length == 2 then
           piece_id, move = plays[play_index]
-          board = args[0][:board]
-          piece_location = board.get_location(piece_id)
-          piece = board.board[piece_location[0]][piece_location[1]]
-          allow(Game).to receive(:select_from).and_return(piece, move)
+          piece = nil
+          args[0][:board].board.find { |r| r.find { |p| piece = p if !p.nil? && p.id == piece_id } }
           play_index += 1
+          to_return = [piece, move]
         else
-          allow(Game).to receive(:select_from).and_return(plays[play_index])
+          to_return = "e"
         end
-        original.call(*args)
+        next to_return
       end
       game_state = game.instance_variable_get(:@game_state)
       settings_state = game.instance_variable_get(:@settings_state)
+      settings_state[:render] = false
       result = Game.play_game(game_state, settings_state)
       expected = "end"
       expect(result).to eq(expected)
@@ -668,21 +586,21 @@ describe Game do
         EXIT
       ]
       play_index = 0
-      allow(Game).to receive(:make_play).and_wrap_original do |original, *args|
+      allow(Game).to receive(:get_move_human).and_wrap_original do |original, *args|
         if plays[play_index].length == 2 then
           piece_id, move = plays[play_index]
-          board = args[0][:board]
-          piece_location = board.get_location(piece_id)
-          piece = board.board[piece_location[0]][piece_location[1]]
-          allow(Game).to receive(:select_from).and_return(piece, move)
+          piece = nil
+          args[0][:board].board.find { |r| r.find { |p| piece = p if !p.nil? && p.id == piece_id } }
           play_index += 1
+          to_return = [piece, move]
         else
-          allow(Game).to receive(:select_from).and_return(plays[play_index])
+          to_return = "e"
         end
-        original.call(*args)
+        next to_return
       end
       game_state = game.instance_variable_get(:@game_state)
       settings_state = game.instance_variable_get(:@settings_state)
+      settings_state[:render] = false
       result = Game.play_game(game_state, settings_state)
       expected = "end"
       expect(result).to eq(expected)
@@ -704,21 +622,21 @@ describe Game do
         EXIT
       ]
       play_index = 0
-      allow(Game).to receive(:make_play).and_wrap_original do |original, *args|
+      allow(Game).to receive(:get_move_human).and_wrap_original do |original, *args|
         if plays[play_index].length == 2 then
           piece_id, move = plays[play_index]
-          board = args[0][:board]
-          piece_location = board.get_location(piece_id)
-          piece = board.board[piece_location[0]][piece_location[1]]
-          allow(Game).to receive(:select_from).and_return(piece, move)
+          piece = nil
+          args[0][:board].board.find { |r| r.find { |p| piece = p if !p.nil? && p.id == piece_id } }
           play_index += 1
+          to_return = [piece, move]
         else
-          allow(Game).to receive(:select_from).and_return(plays[play_index])
+          to_return = "e"
         end
-        original.call(*args)
+        next to_return
       end
       game_state = game.instance_variable_get(:@game_state)
       settings_state = game.instance_variable_get(:@settings_state)
+      settings_state[:render] = false
       result = Game.play_game(game_state, settings_state)
       expected = "end"
       expect(result).to eq(expected)
@@ -743,21 +661,21 @@ describe Game do
         EXIT
       ]
       play_index = 0
-      allow(Game).to receive(:make_play).and_wrap_original do |original, *args|
+      allow(Game).to receive(:get_move_human).and_wrap_original do |original, *args|
         if plays[play_index].length == 2 then
           piece_id, move = plays[play_index]
-          board = args[0][:board]
-          piece_location = board.get_location(piece_id)
-          piece = board.board[piece_location[0]][piece_location[1]]
-          allow(Game).to receive(:select_from).and_return(piece, move)
+          piece = nil
+          args[0][:board].board.find { |r| r.find { |p| piece = p if !p.nil? && p.id == piece_id } }
           play_index += 1
+          to_return = [piece, move]
         else
-          allow(Game).to receive(:select_from).and_return(plays[play_index])
+          to_return = "e"
         end
-        original.call(*args)
+        next to_return
       end
       game_state = game.instance_variable_get(:@game_state)
       settings_state = game.instance_variable_get(:@settings_state)
+      settings_state[:render] = false
       result = Game.play_game(game_state, settings_state)
       expected = "end"
       expect(result).to eq(expected)
@@ -783,21 +701,21 @@ describe Game do
         EXIT
       ]
       play_index = 0
-      allow(Game).to receive(:make_play).and_wrap_original do |original, *args|
+      allow(Game).to receive(:get_move_human).and_wrap_original do |original, *args|
         if plays[play_index].length == 2 then
           piece_id, move = plays[play_index]
-          board = args[0][:board]
-          piece_location = board.get_location(piece_id)
-          piece = board.board[piece_location[0]][piece_location[1]]
-          allow(Game).to receive(:select_from).and_return(piece, move)
+          piece = nil
+          args[0][:board].board.find { |r| r.find { |p| piece = p if !p.nil? && p.id == piece_id } }
           play_index += 1
+          to_return = [piece, move]
         else
-          allow(Game).to receive(:select_from).and_return(plays[play_index])
+          to_return = "e"
         end
-        original.call(*args)
+        next to_return
       end
       game_state = game.instance_variable_get(:@game_state)
       settings_state = game.instance_variable_get(:@settings_state)
+      settings_state[:render] = false
       result = Game.play_game(game_state, settings_state)
       expected = "end"
       expect(result).to eq(expected)
@@ -824,21 +742,21 @@ describe Game do
         EXIT
       ]
       play_index = 0
-      allow(Game).to receive(:make_play).and_wrap_original do |original, *args|
+      allow(Game).to receive(:get_move_human).and_wrap_original do |original, *args|
         if plays[play_index].length == 2 then
           piece_id, move = plays[play_index]
-          board = args[0][:board]
-          piece_location = board.get_location(piece_id)
-          piece = board.board[piece_location[0]][piece_location[1]]
-          allow(Game).to receive(:select_from).and_return(piece, move)
+          piece = nil
+          args[0][:board].board.find { |r| r.find { |p| piece = p if !p.nil? && p.id == piece_id } }
           play_index += 1
+          to_return = [piece, move]
         else
-          allow(Game).to receive(:select_from).and_return(plays[play_index])
+          to_return = "e"
         end
-        original.call(*args)
+        next to_return
       end
       game_state = game.instance_variable_get(:@game_state)
       settings_state = game.instance_variable_get(:@settings_state)
+      settings_state[:render] = false
       result = Game.play_game(game_state, settings_state)
       expected = "end"
       expect(result).to eq(expected)
@@ -865,21 +783,21 @@ describe Game do
         EXIT
       ]
       play_index = 0
-      allow(Game).to receive(:make_play).and_wrap_original do |original, *args|
+      allow(Game).to receive(:get_move_human).and_wrap_original do |original, *args|
         if plays[play_index].length == 2 then
           piece_id, move = plays[play_index]
-          board = args[0][:board]
-          piece_location = board.get_location(piece_id)
-          piece = board.board[piece_location[0]][piece_location[1]]
-          allow(Game).to receive(:select_from).and_return(piece, move)
+          piece = nil
+          args[0][:board].board.find { |r| r.find { |p| piece = p if !p.nil? && p.id == piece_id } }
           play_index += 1
+          to_return = [piece, move]
         else
-          allow(Game).to receive(:select_from).and_return(plays[play_index])
+          to_return = "e"
         end
-        original.call(*args)
+        next to_return
       end
       game_state = game.instance_variable_get(:@game_state)
       settings_state = game.instance_variable_get(:@settings_state)
+      settings_state[:render] = false
       result = Game.play_game(game_state, settings_state)
       expected = "end"
       expect(result).to eq(expected)
@@ -980,20 +898,21 @@ describe Game do
         EXIT
       ]
       play_index = 0
-      allow(Game).to receive(:make_play).and_wrap_original do |original, *args|
+      allow(Game).to receive(:get_move_human).and_wrap_original do |original, *args|
         if plays[play_index].length == 2 then
           piece_location, move = plays[play_index]
           board = args[0][:board]
           piece = board.board[piece_location[0]][piece_location[1]]
-          allow(Game).to receive(:select_from).and_return(piece, move)
           play_index += 1
+          to_return = [piece, move]
         else
-          allow(Game).to receive(:select_from).and_return(plays[play_index])
+          to_return = "e"
         end
-        original.call(*args)
+        next to_return
       end
       game_state = game.instance_variable_get(:@game_state)
       settings_state = game.instance_variable_get(:@settings_state)
+      settings_state[:render] = false
       result = Game.play_game(game_state, settings_state)
       expected = "e"
       expect(result).to eq(expected)

@@ -1,13 +1,16 @@
 require 'json'
 require 'set'
+require 'time'
 Dir[File.join(__dir__, '/pieces', "*")].each { |file| require file }
 require_relative "./Grid"
 require_relative "./Player"
 require_relative "./Computer"
 require_relative "./Render"
 
+$debug_file = File.new(File.join(File.dirname(__FILE__), '..', 'spec/dev/null.txt'), 'w')
+
 class Game
-  EXIT_CODES = Player.exit_codes
+  EXIT_CODES = Player.exit_codes + ["save"]
   PLAYERS = [
     "Human",
     "Random",
@@ -15,32 +18,39 @@ class Game
     "Medium",
     "Hard"
   ]
-
-
+  
+  
   def initialize(page = "start")
     @game_state = {}
     @settings_state = {player1: PLAYERS[0], player2: PLAYERS[0], cheats: false, render: true}
     came_from = nil
     Render.open
     while page != "fe" do
+      $debug_file.puts("Page #{page}")
       case page
       when "start"
         came_from = "start"
         page = Game.start_game
         next
-      when "play"
-        came_from = "play"
+      when "New Game"
+        came_from = "New Game"
         page = Game.play_game(@game_state, @settings_state)
         next
+      when "save"
+        came_from = "save"
+        page = Game.save_game(@game_state, @settings_state)
+      when "Continue Game"
+        came_from = "Continue Game"
+        page = Game.load_game(@game_state, @settings_state)
       when "tutorial"
         came_from = "tutorial"
         page = Game.tutorial_game
         next
       when "settings"
-         came_from = "settings"
+        came_from = "settings"
         page = Game.settings_game(@game_state, @settings_state)
         next
-      when "e"
+      when "e" || "q"
         page = Game.exit_game(@game_state, @settings_state, came_from)
         next
       when "end"
@@ -574,7 +584,7 @@ class Game
   end
 
   def self.exit_game(game_state, settings_state, page = "start")
-    return "hard_exit" if game_state.nil?
+    return "hard_exit" if game_state == {}
     options = ["yes", "no"]
     selected = 0
     act = method(:exit_act)
@@ -615,7 +625,7 @@ class Game
   end
 
   def self.start_game
-    options = ["play", "tutorial", "settings", "exit"]
+    options = ["New Game", "Continue Game", "tutorial", "settings", "exit"]
     selected = 0
     act = method(:start_act)
     exit_code = "."
@@ -640,6 +650,67 @@ class Game
     else
       return nil
     end
+  end
+
+  def self.save_game(game_state, settings_state)
+    title = Time.now.to_s
+    Render.save_game(game_state, settings_state, title)
+    first_title = title
+    act = method(:save_act)
+    input = nil
+    input = Player.handle_input(act)
+    while input != "." do
+      if (input == "<" && title.length == 0) || (input == "fe") then
+        return "New Game"
+      end
+      case input
+      when "<"
+        if title == first_title then
+          title = ""
+        else
+          title = title[0...title.length-1]
+        end
+      else
+        title += input
+      end
+      Render.save_game(game_state, settings_state, title)
+      input = Player.handle_input(act)
+    end
+    copy_game_state = copy_game(game_state)
+    copy_game_state[:board] = copy_game_state[:board].board.map { |row| row.map { |piece| piece.nil? ? piece : piece.id } }
+    state = [copy_game_state, settings_state]
+    saved_state = JSON.generate(state)
+    save_file = File.new(File.join(File.dirname(__FILE__), 'saves', title + ".txt"), 'w')
+    save_file.print(saved_state)
+    return "New Game"
+  end
+
+  # def self.load_game(game_state, settings_state)
+  #   save = select_save_file
+  #   loaded_game_state, loaded_settings_state = save
+  #   id_board = loaded_game_state[:board]
+  #   loaded_game_state[:board] = 
+  #   for key in game_state.keys do
+  #     game_state[key] = loaded_game_state[key]
+  #   end
+  #   return "New Game"
+  # end
+
+  def self.save_act(input)
+    case input
+    when "submit"
+      return "."
+    when "reset"
+      return "<"
+    else
+      if input.nil? then
+        return nil
+      end
+      if input.length == 1
+        return input
+      end
+    end
+    nil
   end
 
   def self.copy_game(game_state)
