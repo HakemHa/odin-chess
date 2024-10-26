@@ -368,6 +368,22 @@ class Render
     print("     Turn: #{game_state[:turn] == 0 ? "W" : "B"}")
   end
 
+  def self.load_game(saves, selected, preview_game_state)
+    system("clear")
+    print("Choose game to load: \n\n")
+    underline_bold = "\e[1;4m"
+    reset_style = "\e[22;24m"
+    for option in saves do
+      if option == saves[selected] then
+        print("-> #{underline_bold+option+reset_style}")
+      else
+        print("   #{option}")
+      end
+      print("\n\n")
+    end
+    mini_board(preview_game_state, {}, nil, 0, nil, 0, [1+selected*2, 50])
+  end
+
   def self.end_game(winner)
     system("clear")
     $stdout.print("    Game Over", "\n")

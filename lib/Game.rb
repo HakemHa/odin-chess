@@ -660,7 +660,10 @@ class Game
     input = nil
     input = Player.handle_input(act)
     while input != "." do
-      if (input == "<" && title.length == 0) || (input == "fe") then
+      if input == "fe" then
+        return input
+      end
+      if input == "<" && title.length == 0 then
         return "New Game"
       end
       case input
@@ -671,7 +674,11 @@ class Game
           title = title[0...title.length-1]
         end
       else
-        title += input
+        if title == first_title then
+          title = input
+        else
+          title += input
+        end
       end
       Render.save_game(game_state, settings_state, title)
       input = Player.handle_input(act)
@@ -684,17 +691,6 @@ class Game
     save_file.print(saved_state)
     return "New Game"
   end
-
-  # def self.load_game(game_state, settings_state)
-  #   save = select_save_file
-  #   loaded_game_state, loaded_settings_state = save
-  #   id_board = loaded_game_state[:board]
-  #   loaded_game_state[:board] = 
-  #   for key in game_state.keys do
-  #     game_state[key] = loaded_game_state[key]
-  #   end
-  #   return "New Game"
-  # end
 
   def self.save_act(input)
     case input
@@ -711,6 +707,60 @@ class Game
       end
     end
     nil
+  end
+
+  def self.load_game(game_state, settings_state)
+    save = select_save_file
+    return save if exit_game?(save)
+    loaded_game_state, loaded_settings_state = save
+    for key in loaded_game_state.keys do
+      game_state[key] = loaded_game_state[key]
+    end
+    for key in loaded_settings_state.keys do
+      settings_state[key] = loaded_settings_state[key]
+    end
+    return "New Game"
+  end
+
+  def self.select_save_file
+    saves_dir = Dir.entries(File.join(File.dirname(__FILE__), "saves"))
+    saves_dir.delete(".")
+    saves_dir.delete("..")
+    selected = 0
+    act = method(:start_act)
+    exit_code = "."
+    input = nil
+    while input != exit_code
+      Render.load_game(saves_dir, selected, parse_save_file(saves_dir[selected])[0])
+      input = Player.handle_input(act)
+      return input if exit_game?(input)
+      selected = (selected+input+saves_dir.length)%saves_dir.length if input != exit_code
+    end
+    filename = saves_dir[selected]
+    return parse_save_file(filename)
+  end
+
+  def self.parse_save_file(filename)
+    file = File.open(File.join(File.dirname(__FILE__), "saves", filename), "r")
+    file = file.read
+    save = JSON.parse(file)
+    save[0].transform_keys!(&:to_sym)
+    save[1].transform_keys!(&:to_sym)
+    id_board = save[0][:board]
+    load_board = Grid.new
+    load_board.board = Array.new(8) { Array.new(8) }
+    for y in 0...8 do
+      for x in 0...8 do
+        piece_id = id_board[y][x]
+        if !piece_id.nil? then
+          load_board.board[y][x] = str_to_piece(piece_id)
+        else
+          nil
+        end
+      end
+    end
+    save[0][:board] = load_board
+    return save
   end
 
   def self.copy_game(game_state)
