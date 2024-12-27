@@ -1,6 +1,3 @@
 Page start
-Page New Game
-Page save
-Page New Game
-Page save
+Page Continue Game
 Page New Game

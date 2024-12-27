@@ -389,7 +389,7 @@ class Render
     $stdout.print("    Game Over", "\n")
     if ["W", "B"].include?(winner) then
       piece = winner == "W" ? "♔" : "♚"
-      $stdout.print("    Player #{piece} won!", "\n")
+      $stdout.print("    Player #{piece}  won!", "\n")
     else
       $stdout.print("The game ended in draw by #{winner}!", "\n")
     end
